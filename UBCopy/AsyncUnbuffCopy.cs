@@ -295,7 +295,7 @@ namespace UBCopy
         //hash input file
         public static void GetMD5HashFromInputFile()
         {
-            var fs = new FileStream(_inputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize * 1024 * 1024);
+            var fs = new FileStream(_inputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize);
             MD5 md5 = new MD5CryptoServiceProvider();
             byte[] retVal = md5.ComputeHash(fs);
             fs.Close();
@@ -311,7 +311,7 @@ namespace UBCopy
         //hash output file
         public static void GetMD5HashFromOutputFile()
         {
-            var fs = new FileStream(_outputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize * 1024 * 1024);
+            var fs = new FileStream(_outputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize);
             MD5 md5 = new MD5CryptoServiceProvider();
             byte[] retVal = md5.ComputeHash(fs);
             fs.Close();

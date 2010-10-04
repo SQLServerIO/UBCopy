@@ -84,6 +84,7 @@ namespace UBCopy
             {
                 Console.WriteLine("Error: File copy aborted");
                 Console.WriteLine(e.Message);
+                Console.ReadKey();
                 return 0;
             }
 
