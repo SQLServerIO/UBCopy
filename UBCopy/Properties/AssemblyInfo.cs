@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("UBCopy")]
 [assembly: AssemblyDescription("Unbuffered File Copy")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("PlanetaryDB")]
+[assembly: AssemblyCompany("SQLServerIO")]
 [assembly: AssemblyProduct("UBCopy")]
-[assembly: AssemblyCopyright("Copyright © PlanetaryDB 2010")]
+[assembly: AssemblyCopyright("Copyright © SQLServerIO 2010")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
