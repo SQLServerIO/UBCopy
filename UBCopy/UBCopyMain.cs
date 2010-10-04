@@ -11,6 +11,7 @@ namespace UBCopy
         private static string _sourcefile;
         private static string _destinationfile;
         private static bool _overwritedestination;
+        //we set an inital buffer size to be on the safe side.
         private static int _buffersize = 16;
         private static bool _checksumfiles;
         private static bool _reportprogres;
