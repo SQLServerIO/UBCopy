@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UBCopy", "UBCopy\UBCopy.csproj", "{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
