@@ -1,0 +1,5 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <StartArguments>-s=k:\downloads\VRTS_SF_Basic_5.1_SP1_Windows_64.SlipStream.zip -d=c:\delme.zip -o=true -c=false -r=true -b=16</StartArguments>
+  </PropertyGroup>
+</Project>
