@@ -88,11 +88,20 @@ namespace UBCopy
         private static void AsyncReadFile()
         {
             //open input file
-            _infile = new FileStream(_inputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize, FileFlagNoBuffering);
+            try
+            {
+                _infile = new FileStream(_inputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize,
+                                         FileFlagNoBuffering);
 
-            //get input file length.
-            _infilesize = _infile.Length;
-
+                //get input file length.
+                _infilesize = _infile.Length;
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine("Failed to open for read");
+                Debug.WriteLine(e.Message);
+                throw;
+            }
             //if we have data read it
             while (_totalbytesread < _infilesize)
             {
@@ -119,21 +128,35 @@ namespace UBCopy
         {
             //open output file set length to prevent growth and file fragmentation and close it.
             //We have to do it this way so we can do unbuffered writes to it later 
-            _outfile = new FileStream(_outputfile, FileMode.Create, FileAccess.Write, FileShare.None, 8, FileOptions.WriteThrough);
-            _outfile.SetLength(_infilesize);
-            _outfile.Close();
-            _outfile.Dispose();
+            try
+            {
+                _outfile = new FileStream(_outputfile, FileMode.Create, FileAccess.Write, FileShare.None, 8,
+                                          FileOptions.WriteThrough);
+                _outfile.SetLength(_infilesize);
+                _outfile.Close();
+                _outfile.Dispose();
+            }
+            catch(Exception e)
+            {
+                Debug.WriteLine("Failed to open for write");
+                Debug.WriteLine(e.Message);
+                throw;
+            }
 
             //open file for write unbuffered
             _outfile = new FileStream(_outputfile, FileMode.Open, FileAccess.Write, FileShare.None, 8, FileOptions.WriteThrough | FileFlagNoBuffering);
 
-            //progress stuff
-            var pctinc = 0.0;
-            var progress = pctinc;
 
-            if (_numchunks > 0)
+            double pctinc = 0.0;
+            double progress =pctinc;
+
+            //progress stuff
+            if (_reportprogress)
             {
-                pctinc = 100.00 / _numchunks;
+                if (_numchunks > 0)
+                {
+                    pctinc = 100.00/_numchunks;
+                }
             }
 
             while (_totalbyteswritten < _infilesize - CopyBufferSize)
@@ -198,6 +221,13 @@ namespace UBCopy
 
         public static int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool checksum, int buffersize, bool reportprogress)
         {
+            Debug.WriteLine(inputfile);
+            Debug.WriteLine(outputfile);
+            Debug.WriteLine(overwrite);
+            Debug.WriteLine(checksum);
+            Debug.WriteLine(buffersize);
+            Debug.WriteLine(reportprogress);
+
             //report write progress
             _reportprogress = reportprogress;
 
@@ -246,16 +276,20 @@ namespace UBCopy
             //get number of buffer sized chunks used to correctly display percent complete.
             _numchunks = (int)(s1 / CopyBufferSize);
 
+            Thread.Sleep(1000);
+
             //create write thread and start it.
             var writefile = new Thread(AsyncWriteFile) { Name = "WriteThread", IsBackground = true };
             writefile.Start();
 
             Console.WriteLine("File Copy Started");
 
-            //set fancy curor position
-            _origRow = Console.CursorTop;
-            _origCol = Console.CursorLeft;
-
+            if (_reportprogress)
+            {
+                //set fancy curor position
+                _origRow = Console.CursorTop;
+                _origCol = Console.CursorLeft;
+            }
             //wait for threads to finish
             readfile.Join();
             writefile.Join();

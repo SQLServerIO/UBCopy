@@ -38,7 +38,7 @@ namespace UBCopy
         //hold command line options
         private static string _sourcefile;
         private static string _destinationfile;
-        private static bool _overwritedestination;
+        private static bool _overwritedestination = true;
         //we set an inital buffer size to be on the safe side.
         private static int _buffersize = 16;
         private static bool _checksumfiles;
@@ -50,13 +50,17 @@ namespace UBCopy
             int parseerr = ParseCommandLine(args);
             if (parseerr == 1)
             {
-#if DEBUG
-                Console.ReadKey();
-#endif
                 return 0;
             }
             try
             {
+                Debug.WriteLine(Environment.UserInteractive);
+                //if you are running without an interactive command shell then we disable the fancy reporting feature
+                if (Environment.UserInteractive == false)
+                {
+                    _reportprogres = false;
+                }
+
                 var f = new FileInfo(_sourcefile);
                 long s1 = f.Length;
 
@@ -73,18 +77,12 @@ namespace UBCopy
 
 
                 Console.WriteLine("Done.");
-                Console.ReadKey();
-
-#if DEBUG
-                Console.ReadKey();
-#endif
                 return 1;
             }
             catch (Exception e)
             {
                 Console.WriteLine("Error: File copy aborted");
                 Console.WriteLine(e.Message);
-                Console.ReadKey();
                 return 0;
             }
 
