@@ -109,13 +109,13 @@ namespace UBCopy
                 _bytesRead1 = _infile.Read(Buffer1, 0, CopyBufferSize);
                 lock (Locker1)
                 {
-                    while (_buffer2Dirty) Monitor.Wait(Locker1);
-                    Debug.WriteLine("Copy buffer overlap read");
-                    Buffer.BlockCopy(Buffer1, 0, Buffer2, 0, _bytesRead1);
-                    _bytesRead2 = _bytesRead1;
-                    _buffer2Dirty = true;
-                    _totalbytesread = _totalbytesread + _bytesRead1;
-                    Monitor.Pulse(Locker1);
+                    while (_buffer2Dirty)Monitor.Wait(Locker1);
+                        Debug.WriteLine("Copy buffer overlap read");
+                        Buffer.BlockCopy(Buffer1, 0, Buffer2, 0, _bytesRead1);
+                        _buffer2Dirty = true;
+                        Monitor.PulseAll(Locker1);
+                        _bytesRead2 = _bytesRead1;
+                        _totalbytesread = _totalbytesread + _bytesRead1;
                 }
             }
             //clean up open handle
@@ -164,19 +164,20 @@ namespace UBCopy
                 lock (Locker1)
                 {
                     while (!_buffer2Dirty) Monitor.Wait(Locker1);
-                    Debug.WriteLine(_totalbyteswritten);
-                    Debug.WriteLine("copy buffer overlap write");
-                    Buffer.BlockCopy(Buffer2, 0, Buffer3, 0, _bytesRead2);
-                    _buffer2Dirty = false;
-                    Monitor.Pulse(Locker1);
-                    //fancy dan in place percent update on each write.
-                    if (_reportprogress)
-                    {
-                        Console.SetCursorPosition(_origCol, _origRow);
-                        progress = progress + pctinc;
-                        Console.Write("%{0}", Math.Round(progress, 0));
-                    }
-                    _totalbyteswritten = _totalbyteswritten + CopyBufferSize;
+
+                        Debug.WriteLine(_totalbyteswritten);
+                        Debug.WriteLine("copy buffer overlap write");
+                        Buffer.BlockCopy(Buffer2, 0, Buffer3, 0, _bytesRead2);
+                        _buffer2Dirty = false;
+                        Monitor.PulseAll(Locker1);
+                        //fancy dan in place percent update on each write.
+                        if (_reportprogress)
+                        {
+                            Console.SetCursorPosition(_origCol, _origRow);
+                            progress = progress + pctinc;
+                            Console.Write("%{0}", Math.Round(progress, 0));
+                        }
+                        _totalbyteswritten = _totalbyteswritten + CopyBufferSize;
                 }
                 Debug.WriteLine("Write buffer three");
                 _outfile.Write(Buffer3, 0, CopyBufferSize);
@@ -275,8 +276,6 @@ namespace UBCopy
 
             //get number of buffer sized chunks used to correctly display percent complete.
             _numchunks = (int)(s1 / CopyBufferSize);
-
-            Thread.Sleep(1000);
 
             //create write thread and start it.
             var writefile = new Thread(AsyncWriteFile) { Name = "WriteThread", IsBackground = true };
