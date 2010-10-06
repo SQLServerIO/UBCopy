@@ -46,7 +46,10 @@ namespace UBCopy
 
         private static int Main(string[] args)
         {
-            Console.WriteLine("UBCopy 1.50");
+            string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
+            Console.WriteLine("UBCopy " + version);
+            Debug.WriteLine("UBCopy - Version " + version);
             int parseerr = ParseCommandLine(args);
             if (parseerr == 1)
             {
@@ -54,7 +57,7 @@ namespace UBCopy
             }
             try
             {
-                Debug.WriteLine(Environment.UserInteractive);
+                Debug.WriteLine("UBCopy - Environment.UserInteractive: " + Environment.UserInteractive);
                 //if you are running without an interactive command shell then we disable the fancy reporting feature
                 if (Environment.UserInteractive == false)
                 {
@@ -62,22 +65,26 @@ namespace UBCopy
                 }
 
                 var f = new FileInfo(_sourcefile);
-                long s1 = f.Length;
+                long fileSize = f.Length;
 
                 var sw = new Stopwatch();
                 sw.Start();
-                AsyncUnbuffCopy.AsyncCopyFileUnbuffered(_sourcefile, _destinationfile, _overwritedestination, _checksumfiles, _buffersize, _reportprogres);
+                    Debug.WriteLine("UBCopy - FileSize: " + fileSize);
+                    AsyncUnbuffCopy.AsyncCopyFileUnbuffered(_sourcefile, _destinationfile, _overwritedestination,
+                                                            _checksumfiles, _buffersize, _reportprogres);
                 sw.Stop();
 
-                Debug.WriteLine(sw.ElapsedMilliseconds);
-                Debug.WriteLine(s1 / (float)sw.ElapsedMilliseconds / 1000.00);
-
-                Console.WriteLine("Elapsed Seconds: {0}", sw.ElapsedMilliseconds / 1000.00);
-                Console.WriteLine("Megabytes/sec  : {0}", Math.Round(s1 / (float)sw.ElapsedMilliseconds / 1000.00, 2));
+                Debug.WriteLine("UBCopy - ElapsedMilliseconds: " + sw.ElapsedMilliseconds);
+                Debug.WriteLine("UBCopy - ElapsedSeconds     : " + (fileSize / (float)sw.ElapsedMilliseconds / 1000.00));
+                Console.WriteLine("File Size MB     : {0}",Math.Round(fileSize/1024.00/1024.00,2));
+                Console.WriteLine("Elapsed Seconds  : {0}", sw.ElapsedMilliseconds / 1000.00);
+                Console.WriteLine("Megabytes/sec    : {0}", Math.Round(fileSize / (float)sw.ElapsedMilliseconds / 1000.00, 2));
 
 
                 Console.WriteLine("Done.");
+                Debug.WriteLine("UBCopy - Done");
                 return 1;
+
             }
             catch (Exception e)
             {
@@ -155,7 +162,7 @@ namespace UBCopy
             Console.WriteLine("Usage: UBCopy [OPTIONS]");
             Console.WriteLine("copy files using unbuffered IO and asyncronus buffers");
             Console.WriteLine();
-            Console.WriteLine("Options:");
+            Console.WriteLine("Options: ");
             p.WriteOptionDescriptions(Console.Out);
         }
 
@@ -164,7 +171,7 @@ namespace UBCopy
             Console.WriteLine("Usage: UBCopy [OPTIONS]");
             Console.WriteLine("copy files using unbuffered IO and asyncronus buffers");
             Console.WriteLine();
-            Console.WriteLine("Options:");
+            Console.WriteLine("Options: ");
             p.WriteOptionDescriptions(Console.Out);
         }
     }
