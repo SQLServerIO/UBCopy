@@ -1,0 +1,17 @@
+UBCopy 1.5.2.1851
+Usage: UBCopy [OPTIONS]
+Copy files using un-buffered IO and Overlapping buffers
+
+Options:
+  -s, --sourcefile[=VALUE]   The file you wish to copy
+  -d, --destinationfile[=VALUE]
+                             The target file you wish to write
+  -o, --overwritedestination[=VALUE]
+                             True if you want to overwrite the destination
+                               file if it exists
+  -c, --checksum[=VALUE]     True if you want use SHA1 to verify the
+                               destination file is the same as the source file
+  -b, --buffersize[=VALUE]   size in Megabytes, maximum of 32
+  -r, --reportprogress[=VALUE]
+                             True give a visual indicator of the copy progress
+  -?, -h, --help             show this message and exit
