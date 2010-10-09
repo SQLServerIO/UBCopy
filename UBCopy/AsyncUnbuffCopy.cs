@@ -55,6 +55,9 @@ namespace UBCopy
         //number of chunks to copy
         private static int _numchunks;
 
+        //track read state
+        private static bool _readdone;
+
         //syncronization object
         private static readonly object Locker1 = new object();
 
@@ -120,6 +123,7 @@ namespace UBCopy
             //clean up open handle
             _infile.Close();
             _infile.Dispose();
+            _readdone = true;
         }
 
         private static void AsyncWriteFile()
@@ -214,7 +218,7 @@ namespace UBCopy
 
                 lock (Locker1)
                 {
-                    while (!_buffer2Dirty) Monitor.Wait(Locker1);
+                    while ((!_buffer2Dirty) && (!_readdone)) Monitor.Wait(Locker1);
 
                     //just looking at the stats and flags from the read/write threads
                     Debug.WriteLine("UBCopy - _totalbytesread    : " + _totalbytesread);
@@ -285,6 +289,14 @@ namespace UBCopy
 
             //buffer write
             Buffer3 = new byte[CopyBufferSize];
+
+            //clear all flags and handles
+            _totalbytesread = 0;
+            _totalbyteswritten = 0;
+            _bytesRead1 = 0;
+            _readdone = false;
+            _buffer2Dirty = false;
+
 
             //if the overwrite flag is set to false check to see if the file is there.
             if (File.Exists(outputfile) && !overwrite)
