@@ -43,6 +43,7 @@ namespace UBCopy
         private static int _buffersize = 16;
         private static bool _checksumfiles;
         private static bool _reportprogres;
+        private static bool _movefile;
 
         private static int Main(string[] args)
         {
@@ -70,7 +71,7 @@ namespace UBCopy
                 var sw = new Stopwatch();
                 sw.Start();
                     Debug.WriteLine("UBCopy - FileSize: " + fileSize);
-                    AsyncUnbuffCopy.AsyncCopyFileUnbuffered(_sourcefile, _destinationfile, _overwritedestination,
+                    AsyncUnbuffCopy.AsyncCopyFileUnbuffered(_sourcefile, _destinationfile, _overwritedestination, _movefile,
                                                             _checksumfiles, _buffersize, _reportprogres);
                 sw.Stop();
 
@@ -110,7 +111,10 @@ namespace UBCopy
                           { "o:|overwritedestination:", "True if you want to overwrite the destination file if it exists",
                           (bool v) => _overwritedestination = v},
 
-                          { "c:|checksum:", "True if you want use SHA1 to verify the destination file is the same as the source file",
+                          { "m:|movefile:", "True if you want to copy the file to new location and delete from the old location",
+                          (bool v) => _movefile = v},
+
+                          { "c:|checksum:", "True if you want use MD5 hash to verify the destination file is the same as the source file",
                           (bool v) => _checksumfiles = v},
 
                           { "b:|buffersize:", "size in Megabytes, maximum of 32",

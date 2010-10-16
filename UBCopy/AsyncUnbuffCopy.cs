@@ -262,11 +262,12 @@ namespace UBCopy
             _outfile.Dispose();
         }
 
-        public static int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool checksum, int buffersize, bool reportprogress)
+        public static int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
         {
             Debug.WriteLine("UBCopy - inputfile      : " + inputfile);
             Debug.WriteLine("UBCopy - outputfile     : " + outputfile);
             Debug.WriteLine("UBCopy - overwrite      : " + overwrite);
+            Debug.WriteLine("UBCopy - movefile       : " + movefile);
             Debug.WriteLine("UBCopy - checksum       : " + checksum);
             Debug.WriteLine("UBCopy - buffersize     : " + buffersize);
             Debug.WriteLine("UBCopy - reportprogress : " + reportprogress);
@@ -336,7 +337,7 @@ namespace UBCopy
                 Debug.WriteLine("UBCopy - Fell Back to Buffered Synchronous");
                 try
                 {
-                    BufferedCopy.SyncCopyFileUnbuffered(inputfile, outputfile, overwrite, checksum, buffersize,
+                    BufferedCopy.SyncCopyFileUnbuffered(inputfile, outputfile, overwrite, movefile, checksum, buffersize,
                                                         reportprogress);
                 }
                 catch(Exception e)
@@ -405,6 +406,10 @@ namespace UBCopy
                     Console.WriteLine("Output File Checksum: {0}", _outfilechecksum);
                 }
             }
+
+            if (movefile && File.Exists(inputfile) && File.Exists(outputfile))
+                File.Delete(inputfile);
+
             return 1;
         }
 

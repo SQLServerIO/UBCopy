@@ -7,7 +7,7 @@ namespace UBCopy
     {
         const FileOptions FileFlagNoBuffering = (FileOptions)0x20000000;
 
-        public static int SyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool checksum, int buffersize, bool reportprogress)
+        public static int SyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
         {
             var buffer = new byte[buffersize * 1024 * 1024];
 
@@ -39,6 +39,8 @@ namespace UBCopy
                 {
                     outfile.Write(buffer, 0, bytesRead);
                 }
+                if (movefile && File.Exists(inputfile) && File.Exists(outputfile))
+                    File.Delete(inputfile);
                 return 1;
             }
             catch
