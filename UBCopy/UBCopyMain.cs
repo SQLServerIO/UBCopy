@@ -26,6 +26,16 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+
+//TODO: add in directory copy
+//TODO: add in retry/copy restart
+// maybe utilize a WAL type file structure?
+// Would require resetting the length?
+//TODO: Yet more error checking!
+//TODO: Command line compattible with robocopy?
+//TODO: Command line compattible with xcopy?
+//TODO: Command line compattible with copy?
+
 using System;
 using System.Diagnostics;
 using System.IO;

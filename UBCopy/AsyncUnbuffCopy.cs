@@ -55,8 +55,9 @@ namespace UBCopy
         //number of chunks to copy
         private static int _numchunks;
 
-        //track read state
+        //track read state and read failed state
         private static bool _readdone;
+        private static bool _readfailed;
 
         //syncronization object
         private static readonly object Locker1 = new object();
@@ -110,13 +111,19 @@ namespace UBCopy
                 Monitor.Enter(Locker1);
                 try
                 {
-                    while (_buffer2Dirty)Monitor.Wait(Locker1);
-                        Buffer.BlockCopy(Buffer1, 0, Buffer2, 0, _bytesRead1);
-                        _buffer2Dirty = true;
-                        _bytesRead2 = _bytesRead1;
-                        _totalbytesread = _totalbytesread + _bytesRead1;
-                        Monitor.PulseAll(Locker1);
-                        Debug.WriteLine("UBCopy - Read       : " + _totalbytesread);
+                    while (_buffer2Dirty) Monitor.Wait(Locker1);
+                    Buffer.BlockCopy(Buffer1, 0, Buffer2, 0, _bytesRead1);
+                    _buffer2Dirty = true;
+                    _bytesRead2 = _bytesRead1;
+                    _totalbytesread = _totalbytesread + _bytesRead1;
+                    Monitor.PulseAll(Locker1);
+                    Debug.WriteLine("UBCopy - Read       : " + _totalbytesread);
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine("Read Failed.");
+                    Debug.WriteLine(e.Message);
+                    _readfailed = true;
                 }
                 finally{Monitor.Exit(Locker1);}
             }
@@ -176,7 +183,7 @@ namespace UBCopy
             Debug.WriteLine("UBCopy - While Write _totalbyteswritten          : " + _totalbyteswritten);
             Debug.WriteLine("UBCopy - While Write _infilesize - CopyBufferSize: " + (_infilesize - CopyBufferSize));
 
-            while (_totalbyteswritten < _infilesize - CopyBufferSize)
+            while ((_totalbyteswritten < _infilesize - CopyBufferSize) && !_readfailed)
             {
                     Debug.WriteLine("UBCopy - Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
                     lock (Locker1)
