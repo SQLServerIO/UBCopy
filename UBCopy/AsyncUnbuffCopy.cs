@@ -415,8 +415,20 @@ namespace UBCopy
             }
 
             if (movefile && File.Exists(inputfile) && File.Exists(outputfile))
-                File.Delete(inputfile);
-
+                try
+                {
+                    File.Delete(inputfile);    
+                }
+                catch (IOException ioex)
+                {
+                    Console.WriteLine("File in use or locked");
+                    Console.WriteLine(ioex.Message);
+                }
+            catch(Exception ex)
+            {
+                Console.WriteLine("File Failed to Delete");
+                Console.WriteLine(ex.Message);
+            }
             return 1;
         }
 
