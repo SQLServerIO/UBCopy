@@ -62,7 +62,6 @@ namespace UBCopy
         private static int _numchunks;
 
         //track read state and read failed state
-        private static bool _readdone;
         private static bool _readfailed;
 
         //syncronization object
@@ -150,7 +149,6 @@ namespace UBCopy
             //clean up open handle
             _infile.Close();
             _infile.Dispose();
-            _readdone = true;
         }
 
         private static void AsyncWriteFile()
@@ -335,7 +333,6 @@ namespace UBCopy
             _totalbytesread = 0;
             _totalbyteswritten = 0;
             _bytesRead1 = 0;
-            _readdone = false;
             _buffer2Dirty = false;
 
 
