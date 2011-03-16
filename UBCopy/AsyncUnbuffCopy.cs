@@ -219,7 +219,7 @@ namespace UBCopy
                 Log.Debug("While Write _totalbyteswritten          : " + _totalbyteswritten);
                 Log.Debug("While Write _infilesize - CopyBufferSize: " + (_infilesize - CopyBufferSize));
             }
-            while ((_totalbyteswritten < _infilesize - CopyBufferSize) && !_readfailed)
+            while ((_totalbyteswritten < _infilesize) && !_readfailed)
             {
                 if (IsDebugEnabled)
                 {
@@ -277,70 +277,27 @@ namespace UBCopy
             _outfile.Close();
             _outfile.Dispose();
 
-            if (_totalbyteswritten + _bytesRead2 == _infilesize)
+            try
             {
                 if (IsDebugEnabled)
                 {
-                    Log.Debug("Start Tail Buffered");
+                    Log.Debug("Open File Set Length");
                 }
-                lock (Locker1)
-                {
-                    while ((!_buffer2Dirty) && (!_readdone)) Monitor.Wait(Locker1);
-
-                    if (IsDebugEnabled)
-                    {
-                        //just looking at the stats and flags from the read/write threads
-                        Log.Debug("_totalbytesread    : " + _totalbytesread);
-                        Log.Debug("_totalbyteswritten : " + _totalbyteswritten);
-                        Log.Debug("Write Tail _buffer2Dirty      : " + _buffer2Dirty);
-                        Log.Debug("_bytesRead2        : " + _bytesRead2);
-                    }
-                    //open file for write buffered We do this so we can write the tail of the file
-                    //it is a cludge but hey you get what you get in C#
-                    _outfile = new FileStream(_outputfile, FileMode.Open, FileAccess.Write, FileShare.None, 8,
-                                              FileOptions.WriteThrough);
-
-                    //this should always be true but I haven't run all the edge cases yet
-                    if (_buffer2Dirty)
-                    {
-                        //go to the right position in the file
-                        _outfile.Seek(_infilesize - _bytesRead2, 0);
-                        if (IsDebugEnabled)
-                        {
-                            //peek at the file possition
-                            Log.Debug("_outfile.Position : " + _outfile.Position);
-                        }
-                        //flush the last buffer syncronus and buffered.
-                        _outfile.Write(Buffer2, 0, _bytesRead2);
-                        Monitor.PulseAll(Locker1);
-                        if (IsDebugEnabled)
-                        {
-                            //check our position again
-                            Log.Debug("_outfile.Position : " + _outfile.Position);
-                            Log.Debug("_outfile.Length   : " + _outfile.Length);
-                        }
-                    }
-                }
+                _outfile = new FileStream(_outputfile, FileMode.Open, FileAccess.Write, FileShare.None, 8,
+                                          FileOptions.WriteThrough);
+                _outfile.SetLength(_infilesize);
+                _outfile.Close();
+                _outfile.Dispose();
             }
-            else
+            catch (Exception e)
             {
                 if (IsDebugEnabled)
                 {
-                    Log.Debug("Failed Write!");
-                    Log.Debug("_totalbytesread    : " + _totalbytesread);
-                    Log.Debug("_totalbyteswritten : " + _totalbyteswritten);
-                    Log.Debug("Write Tail _buffer2Dirty      : " + _buffer2Dirty);
-                    Log.Debug("_bytesRead2        : " + _bytesRead2);
-                    Log.Debug("Failed Write!");
+                    Log.Debug("Failed to open for write set length");
+                    Log.Debug(e);
                 }
+                throw;
             }
-            if (IsDebugEnabled)
-            {
-                //close the file handle that was using unbuffered and write through
-                Log.Debug("Close File Buffered");
-            }
-            _outfile.Close();
-            _outfile.Dispose();
         }
 
         public static int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
