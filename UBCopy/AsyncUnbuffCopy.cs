@@ -27,16 +27,22 @@
 //
 
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using log4net;
+// ReSharper disable RedundantUsingDirective
+using System.Configuration;
+// ReSharper restore RedundantUsingDirective
 
 namespace UBCopy
 {
     internal class AsyncUnbuffCopy
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof(AsyncUnbuffCopy));
+        private static readonly bool IsDebugEnabled = Log.IsDebugEnabled;
+
         //file names
         private static string _inputfile;
         private static string _outputfile;
@@ -99,14 +105,21 @@ namespace UBCopy
             }
             catch (Exception e)
             {
-                Debug.WriteLine("UBCopy - Failed to open for read");
-                Debug.WriteLine("UBCopy - " + e.Message);
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Failed to open for read");
+                    Log.Debug(e);
+                }
                 throw;
             }
             //if we have data read it
             while (_totalbytesread < _infilesize)
             {
-                Debug.WriteLine("UBCopy - Read _buffer2Dirty    : " + _buffer2Dirty);
+                if (IsDebugEnabled)
+                {
+
+                    Log.Debug("Read _buffer2Dirty    : " + _buffer2Dirty);
+                }
                 _bytesRead1 = _infile.Read(Buffer1, 0, CopyBufferSize);
                 Monitor.Enter(Locker1);
                 try
@@ -117,12 +130,19 @@ namespace UBCopy
                     _bytesRead2 = _bytesRead1;
                     _totalbytesread = _totalbytesread + _bytesRead1;
                     Monitor.PulseAll(Locker1);
-                    Debug.WriteLine("UBCopy - Read       : " + _totalbytesread);
+                    if (IsDebugEnabled)
+                    {
+
+                        Log.Debug("Read       : " + _totalbytesread);
+                    }
                 }
                 catch (Exception e)
                 {
-                    Debug.WriteLine("Read Failed.");
-                    Debug.WriteLine(e.Message);
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("Read Failed.");
+                        Log.Debug(e);
+                    }
                     _readfailed = true;
                 }
                 finally{Monitor.Exit(Locker1);}
@@ -139,7 +159,10 @@ namespace UBCopy
             //We have to do it this way so we can do unbuffered writes to it later 
             try
             {
-                Debug.WriteLine("UBCopy - Open File Set Length");
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Open File Set Length");
+                }
                 _outfile = new FileStream(_outputfile, FileMode.Create, FileAccess.Write, FileShare.None, 8,
                                           FileOptions.WriteThrough);
                 _outfile.SetLength(_infilesize);
@@ -148,22 +171,31 @@ namespace UBCopy
             }
             catch(Exception e)
             {
-                Debug.WriteLine("UBCopy - Failed to open for write set length");
-                Debug.WriteLine("UBCopy - " + e.Message);
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Failed to open for write set length");
+                    Log.Debug(e);
+                }
                 throw;
             }
 
             //open file for write unbuffered
             try
             {
-                Debug.WriteLine("UBCopy - Open File Write Unbuffered");
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Open File Write Unbuffered");
+                }
                 _outfile = new FileStream(_outputfile, FileMode.Open, FileAccess.Write, FileShare.None, 8,
                                           FileOptions.WriteThrough | FileFlagNoBuffering);
             }
             catch (Exception e)
             {
-                Debug.WriteLine("UBCopy - Failed to open for write unbuffered");
-                Debug.WriteLine("UBCopy - " + e.Message);
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Failed to open for write unbuffered");
+                    Log.Debug("" + e.Message);
+                }
                 throw;
             }
 
@@ -173,32 +205,52 @@ namespace UBCopy
             //progress stuff
             if (_reportprogress)
             {
-                Debug.WriteLine("UBCopy - Report Progress : True");
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Report Progress : True");
+                }
                 if (_numchunks > 0)
                 {
                     pctinc = 100.00/_numchunks;
                 }
             }
-
-            Debug.WriteLine("UBCopy - While Write _totalbyteswritten          : " + _totalbyteswritten);
-            Debug.WriteLine("UBCopy - While Write _infilesize - CopyBufferSize: " + (_infilesize - CopyBufferSize));
-
+            if (IsDebugEnabled)
+            {
+                Log.Debug("While Write _totalbyteswritten          : " + _totalbyteswritten);
+                Log.Debug("While Write _infilesize - CopyBufferSize: " + (_infilesize - CopyBufferSize));
+            }
             while ((_totalbyteswritten < _infilesize - CopyBufferSize) && !_readfailed)
             {
-                    Debug.WriteLine("UBCopy - Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
-                    lock (Locker1)
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
+                }
+                lock (Locker1)
                     {
-                        Debug.WriteLine("UBCopy - Write Unbuffered Lock");
+                        if (IsDebugEnabled)
+                        {
+                            Log.Debug("Write Unbuffered Lock");
+                        }
                         while (!_buffer2Dirty) Monitor.Wait(Locker1);
-                        Debug.WriteLine("UBCopy - Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
+                        if (IsDebugEnabled)
+                        {
+                            Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
+                        }
                         Buffer.BlockCopy(Buffer2, 0, Buffer3, 0, _bytesRead2);
                         _buffer2Dirty = false;
-                        Debug.WriteLine("UBCopy - Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
+                        if (IsDebugEnabled)
+                        {
+                            Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
+                        }
                         _totalbyteswritten = _totalbyteswritten + CopyBufferSize;
-                        Debug.WriteLine("UBCopy - Written Unbuffered : " + _totalbyteswritten);
+                        if (IsDebugEnabled)
+                        {
+                            Log.Debug("Written Unbuffered : " + _totalbyteswritten);
+                        }
                         Monitor.PulseAll(Locker1);
                         //fancy dan in place percent update on each write.
-                        if (_reportprogress)
+
+                        if (_reportprogress && !IsDebugEnabled)
                         {
                             Console.SetCursorPosition(_origCol, _origRow);
                             progress = progress + pctinc;
@@ -211,28 +263,38 @@ namespace UBCopy
                     }
                     catch (Exception e)
                     {
-                        Debug.WriteLine("UBCopy - Write Unbuffered Failed " + e.Message);
+                        if (IsDebugEnabled)
+                        {
+                            Log.Debug("Write Unbuffered Failed");
+                            Log.Debug(e);
+                        }
+                        throw;
                     }
                 }
+
             //close the file handle that was using unbuffered and write through
-            Debug.WriteLine("UBCopy - Close Write File Unbuffered");
+            Log.Debug("Close Write File Unbuffered");
             _outfile.Close();
             _outfile.Dispose();
 
             if (_totalbyteswritten + _bytesRead2 == _infilesize)
             {
-                Debug.WriteLine("UBCopy - Start Tail Buffered");
-
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Start Tail Buffered");
+                }
                 lock (Locker1)
                 {
                     while ((!_buffer2Dirty) && (!_readdone)) Monitor.Wait(Locker1);
 
-                    //just looking at the stats and flags from the read/write threads
-                    Debug.WriteLine("UBCopy - _totalbytesread    : " + _totalbytesread);
-                    Debug.WriteLine("UBCopy - _totalbyteswritten : " + _totalbyteswritten);
-                    Debug.WriteLine("UBCopy - Write Tail _buffer2Dirty      : " + _buffer2Dirty);
-                    Debug.WriteLine("UBCopy - _bytesRead2        : " + _bytesRead2);
-
+                    if (IsDebugEnabled)
+                    {
+                        //just looking at the stats and flags from the read/write threads
+                        Log.Debug("_totalbytesread    : " + _totalbytesread);
+                        Log.Debug("_totalbyteswritten : " + _totalbyteswritten);
+                        Log.Debug("Write Tail _buffer2Dirty      : " + _buffer2Dirty);
+                        Log.Debug("_bytesRead2        : " + _bytesRead2);
+                    }
                     //open file for write buffered We do this so we can write the tail of the file
                     //it is a cludge but hey you get what you get in C#
                     _outfile = new FileStream(_outputfile, FileMode.Open, FileAccess.Write, FileShare.None, 8,
@@ -243,42 +305,56 @@ namespace UBCopy
                     {
                         //go to the right position in the file
                         _outfile.Seek(_infilesize - _bytesRead2, 0);
-                        //peek at the file possition
-                        Debug.WriteLine("UBCopy - _outfile.Position : " + _outfile.Position);
+                        if (IsDebugEnabled)
+                        {
+                            //peek at the file possition
+                            Log.Debug("_outfile.Position : " + _outfile.Position);
+                        }
                         //flush the last buffer syncronus and buffered.
                         _outfile.Write(Buffer2, 0, _bytesRead2);
                         Monitor.PulseAll(Locker1);
-                        //check our position again
-                        Debug.WriteLine("UBCopy - _outfile.Position : " + _outfile.Position);
-                        Debug.WriteLine("UBCopy - _outfile.Length   : " + _outfile.Length);
+                        if (IsDebugEnabled)
+                        {
+                            //check our position again
+                            Log.Debug("_outfile.Position : " + _outfile.Position);
+                            Log.Debug("_outfile.Length   : " + _outfile.Length);
+                        }
                     }
                 }
             }
             else
             {
-                Debug.WriteLine("UBCopy - Failed Write!");
-                Debug.WriteLine("UBCopy - _totalbytesread    : " + _totalbytesread);
-                Debug.WriteLine("UBCopy - _totalbyteswritten : " + _totalbyteswritten);
-                Debug.WriteLine("UBCopy - Write Tail _buffer2Dirty      : " + _buffer2Dirty);
-                Debug.WriteLine("UBCopy - _bytesRead2        : " + _bytesRead2);
-                Debug.WriteLine("UBCopy - Failed Write!");
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Failed Write!");
+                    Log.Debug("_totalbytesread    : " + _totalbytesread);
+                    Log.Debug("_totalbyteswritten : " + _totalbyteswritten);
+                    Log.Debug("Write Tail _buffer2Dirty      : " + _buffer2Dirty);
+                    Log.Debug("_bytesRead2        : " + _bytesRead2);
+                    Log.Debug("Failed Write!");
+                }
             }
-            //close the file handle that was using unbuffered and write through
-            Debug.WriteLine("UBCopy - Close File Buffered");
+            if (IsDebugEnabled)
+            {
+                //close the file handle that was using unbuffered and write through
+                Log.Debug("Close File Buffered");
+            }
             _outfile.Close();
             _outfile.Dispose();
         }
 
         public static int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
         {
-            Debug.WriteLine("UBCopy - inputfile      : " + inputfile);
-            Debug.WriteLine("UBCopy - outputfile     : " + outputfile);
-            Debug.WriteLine("UBCopy - overwrite      : " + overwrite);
-            Debug.WriteLine("UBCopy - movefile       : " + movefile);
-            Debug.WriteLine("UBCopy - checksum       : " + checksum);
-            Debug.WriteLine("UBCopy - buffersize     : " + buffersize);
-            Debug.WriteLine("UBCopy - reportprogress : " + reportprogress);
-
+            if (IsDebugEnabled)
+            {
+                Log.Debug("inputfile      : " + inputfile);
+                Log.Debug("outputfile     : " + outputfile);
+                Log.Debug("overwrite      : " + overwrite);
+                Log.Debug("movefile       : " + movefile);
+                Log.Debug("checksum       : " + checksum);
+                Log.Debug("buffersize     : " + buffersize);
+                Log.Debug("reportprogress : " + reportprogress);
+            }
             //report write progress
             _reportprogress = reportprogress;
 
@@ -309,6 +385,10 @@ namespace UBCopy
             //if the overwrite flag is set to false check to see if the file is there.
             if (File.Exists(outputfile) && !overwrite)
             {
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Destination File Exists!");
+                }
                 Console.WriteLine("Destination File Exists!");
                 return 0;
             }
@@ -324,6 +404,11 @@ namespace UBCopy
                 }
                 catch(Exception e)
                 {
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("Create Directory Failed.");
+                        Log.Debug(e);
+                    }
                     Console.WriteLine("Create Directory Failed.");
                     Console.WriteLine(e.Message);
                     throw;
@@ -337,11 +422,18 @@ namespace UBCopy
             //get number of buffer sized chunks used to correctly display percent complete.
             _numchunks = (int)(_infilesize / CopyBufferSize);
 
+            if (IsDebugEnabled)
+            {
+                Log.Debug("File Copy Started");
+            }
             Console.WriteLine("File Copy Started");
 
             if (_numchunks == 0)
             {
-                Debug.WriteLine("UBCopy - Fell Back to Buffered Synchronous");
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Fell Back to UnBuffered Synchronous");
+                }
                 try
                 {
                     BufferedCopy.SyncCopyFileUnbuffered(inputfile, outputfile, overwrite, movefile, checksum, buffersize,
@@ -349,6 +441,11 @@ namespace UBCopy
                 }
                 catch(Exception e)
                 {
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("Copy File Failed");
+                        Log.Debug(e);
+                    }
                     Console.WriteLine("Copy File Failed");
                     Console.WriteLine(e.Message);
                     throw;
@@ -361,8 +458,11 @@ namespace UBCopy
                 var readfile = new Thread(AsyncReadFile) {Name = "ReadThread", IsBackground = true};
                 readfile.Start();
 
-                //debug show if we are an even multiple of the file size
-                Debug.WriteLine("UBCopy - Number of Chunks: " + _numchunks);
+                if (IsDebugEnabled)
+                {
+                    //debug show if we are an even multiple of the file size
+                    Log.Debug("Number of Chunks: " + _numchunks);
+                }
 
                 //create write thread and start it.
                 var writefile = new Thread(AsyncWriteFile) {Name = "WriteThread", IsBackground = true};
@@ -384,15 +484,28 @@ namespace UBCopy
             if (_reportprogress)
             Console.WriteLine();
 
+            if (IsDebugEnabled)
+            {
+                Log.Debug("File Copy Done");
+            }
+
             Console.WriteLine("File Copy Done");
 
             if (checksum)
             {
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Checksum Source File Started");
+                }
                 Console.WriteLine("Checksum Source File Started");
                 //create checksum read file thread and start it.
                 var checksumreadfile = new Thread(GetMD5HashFromInputFile) { Name = "checksumreadfile", IsBackground = true };
                 checksumreadfile.Start();
 
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Checksum Destination File Started");
+                }
                 Console.WriteLine("Checksum Destination File Started");
                 //create checksum write file thread and start it.
                 var checksumwritefile = new Thread(GetMD5HashFromOutputFile) { Name = "checksumwritefile", IsBackground = true };
@@ -404,10 +517,20 @@ namespace UBCopy
 
                 if (_infilechecksum.Equals(_outfilechecksum))
                 {
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("Checksum Verified");
+                    }
                     Console.WriteLine("Checksum Verified");
                 }
                 else
                 {
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("Checksum Failed");
+                        Log.DebugFormat("Input File Checksum : {0}", _infilechecksum);
+                        Log.DebugFormat("Output File Checksum: {0}", _outfilechecksum);
+                    }
                     Console.WriteLine("Checksum Failed");
                     Console.WriteLine("Input File Checksum : {0}", _infilechecksum);
                     Console.WriteLine("Output File Checksum: {0}", _outfilechecksum);
@@ -421,11 +544,21 @@ namespace UBCopy
                 }
                 catch (IOException ioex)
                 {
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("File in use or locked cannot move file.");
+                        Log.Debug(ioex);
+                    }
                     Console.WriteLine("File in use or locked");
                     Console.WriteLine(ioex.Message);
                 }
             catch(Exception ex)
             {
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("File Failed to Delete");
+                    Log.Debug(ex);
+                }
                 Console.WriteLine("File Failed to Delete");
                 Console.WriteLine(ex.Message);
             }

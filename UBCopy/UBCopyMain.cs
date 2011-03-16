@@ -28,9 +28,7 @@
 
 
 //TODO: add in directory copy
-//TODO: add in retry/copy restart
-// maybe utilize a WAL type file structure?
-// Would require resetting the length?
+//TODO: add in retry/copy restart maybe utilize a WAL type file structure? Would require resetting the length?
 //TODO: Yet more error checking!
 //TODO: Command line compattible with robocopy?
 //TODO: Command line compattible with xcopy?
@@ -40,11 +38,18 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using NDesk.Options;
+using log4net;
+// ReSharper disable RedundantUsingDirective
+using System.Configuration;
+// ReSharper restore RedundantUsingDirective
 
 namespace UBCopy
 {
     class UBCopyMain
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof(UBCopyMain));
+        private static readonly bool IsDebugEnabled = Log.IsDebugEnabled;
+
         //hold command line options
         private static string _sourcefile;
         private static string _destinationfile;
@@ -57,18 +62,31 @@ namespace UBCopy
 
         private static int Main(string[] args)
         {
-            string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
+//            log4net.Config.XmlConfigurator.Configure();
+
+            if (IsDebugEnabled)
+            {
+                Log.DebugFormat("ArchiveTable started at {0}", DateTime.Now);
+            }
+
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
             Console.WriteLine("UBCopy " + version);
-            Debug.WriteLine("UBCopy - Version " + version);
-            int parseerr = ParseCommandLine(args);
+            if (IsDebugEnabled)
+            {
+                Log.Debug("Version " + version);
+            }
+            var parseerr = ParseCommandLine(args);
             if (parseerr == 1)
             {
                 return 0;
             }
             try
             {
-                Debug.WriteLine("UBCopy - Environment.UserInteractive: " + Environment.UserInteractive);
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("Environment.UserInteractive: " + Environment.UserInteractive);
+                }
                 //if you are running without an interactive command shell then we disable the fancy reporting feature
                 if (Environment.UserInteractive == false)
                 {
@@ -80,20 +98,45 @@ namespace UBCopy
 
                 var sw = new Stopwatch();
                 sw.Start();
-                    Debug.WriteLine("UBCopy - FileSize: " + fileSize);
-                    AsyncUnbuffCopy.AsyncCopyFileUnbuffered(_sourcefile, _destinationfile, _overwritedestination, _movefile,
-                                                            _checksumfiles, _buffersize, _reportprogres);
-                sw.Stop();
+                try
+                {
 
-                Debug.WriteLine("UBCopy - ElapsedMilliseconds: " + sw.ElapsedMilliseconds);
-                Debug.WriteLine("UBCopy - ElapsedSeconds     : " + (fileSize / (float)sw.ElapsedMilliseconds / 1000.00));
+                AsyncUnbuffCopy.AsyncCopyFileUnbuffered(_sourcefile, _destinationfile, _overwritedestination,
+                                                            _movefile,
+                                                            _checksumfiles, _buffersize, _reportprogres);
+                }
+                catch (Exception ex)
+                {
+                    if (IsDebugEnabled)
+                    {
+                        Log.Error(ex);
+                    }
+                    throw;
+                }
+
+                sw.Stop();
+                if (IsDebugEnabled)
+                {
+                    Log.Debug("ElapsedMilliseconds: " + sw.ElapsedMilliseconds);
+                    Log.Debug("ElapsedSeconds     : " + (fileSize/(float) sw.ElapsedMilliseconds/1000.00));
+                    Log.DebugFormat("File Size MB     : {0}", Math.Round(fileSize / 1024.00 / 1024.00, 2));
+                    Log.DebugFormat("Elapsed Seconds  : {0}", sw.ElapsedMilliseconds / 1000.00);
+                    Log.DebugFormat("Megabytes/sec    : {0}", Math.Round(fileSize / (float)sw.ElapsedMilliseconds / 1000.00, 2));
+                    Log.Debug("Done.");
+
+                }
                 Console.WriteLine("File Size MB     : {0}",Math.Round(fileSize/1024.00/1024.00,2));
                 Console.WriteLine("Elapsed Seconds  : {0}", sw.ElapsedMilliseconds / 1000.00);
                 Console.WriteLine("Megabytes/sec    : {0}", Math.Round(fileSize / (float)sw.ElapsedMilliseconds / 1000.00, 2));
 
 
                 Console.WriteLine("Done.");
-                Debug.WriteLine("UBCopy - Done");
+
+#if DEBUG
+                {
+                    Console.ReadKey();
+                }
+#endif
                 return 1;
 
             }

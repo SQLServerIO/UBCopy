@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UBCopy", "UBCopy\UBCopy.csproj", "{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "log4net", "..\log4net-1.2.10\log4net.csproj", "{F6A02431-167E-4347-BC43-65532C31CDB7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,15 +21,21 @@ Global
 		{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}.Release|x86.ActiveCfg = Release|x86
 		{5AC2A09E-4E22-4401-AAA5-B7D114BA1C44}.Release|x86.Build.0 = Release|x86
+		{F6A02431-167E-4347-BC43-65532C31CDB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6A02431-167E-4347-BC43-65532C31CDB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6A02431-167E-4347-BC43-65532C31CDB7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F6A02431-167E-4347-BC43-65532C31CDB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6A02431-167E-4347-BC43-65532C31CDB7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6A02431-167E-4347-BC43-65532C31CDB7}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_UseGlobalSettings = False
-		BuildVersion_BuildVersioningStyle = None.None.None.None
-		BuildVersion_UpdateFileVersion = False
-		BuildVersion_UpdateAssemblyVersion = False
 		BuildVersion_AssemblyInfoFilename = 
+		BuildVersion_UpdateAssemblyVersion = False
+		BuildVersion_UpdateFileVersion = False
+		BuildVersion_BuildVersioningStyle = None.None.None.None
+		BuildVersion_UseGlobalSettings = False
 	EndGlobalSection
 EndGlobal
