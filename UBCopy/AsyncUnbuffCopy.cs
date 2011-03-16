@@ -251,8 +251,11 @@ namespace UBCopy
                         if (_reportprogress && !IsDebugEnabled)
                         {
                             Console.SetCursorPosition(_origCol, _origRow);
-                            progress = progress + pctinc;
-                            Console.Write("%{0}", Math.Round(progress, 0));
+                            if (progress < 100 - pctinc)
+                            {
+                                progress = progress + pctinc;
+                                Console.Write("%{0}", Math.Round(progress, 0));
+                            }
                         }
                     }
                     try
