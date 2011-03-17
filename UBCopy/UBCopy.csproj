@@ -66,6 +66,10 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="log4net, Version=1.2.9.1, Culture=neutral, PublicKeyToken=f4367fb8a6a5eda0, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\log4net-1.2.10\obj\Release\log4net.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
     <Reference Include="System.Core">
@@ -82,7 +86,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncUnbuffCopy.cs" />
-    <Compile Include="BufferedCopy.cs" />
     <Compile Include="ExeptionRenderer.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="UBCopyMain.cs" />
@@ -119,12 +122,6 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\log4net-1.2.10\log4net.csproj">
-      <Project>{F6A02431-167E-4347-BC43-65532C31CDB7}</Project>
-      <Name>log4net</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
