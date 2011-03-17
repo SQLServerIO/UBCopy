@@ -68,7 +68,7 @@
   <ItemGroup>
     <Reference Include="log4net, Version=1.2.9.1, Culture=neutral, PublicKeyToken=f4367fb8a6a5eda0, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\log4net-1.2.10\obj\Release\log4net.dll</HintPath>
+      <HintPath>.\log4net.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
