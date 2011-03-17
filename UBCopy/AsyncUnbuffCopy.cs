@@ -32,9 +32,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using log4net;
-// ReSharper disable RedundantUsingDirective
-using System.Configuration;
-// ReSharper restore RedundantUsingDirective
 
 namespace UBCopy
 {
@@ -116,7 +113,6 @@ namespace UBCopy
             {
                 if (IsDebugEnabled)
                 {
-
                     Log.Debug("Read _buffer2Dirty    : " + _buffer2Dirty);
                 }
                 _bytesRead1 = _infile.Read(Buffer1, 0, CopyBufferSize);
@@ -137,12 +133,10 @@ namespace UBCopy
                 }
                 catch (Exception e)
                 {
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Read Failed.");
-                        Log.Debug(e);
-                    }
+                    Log.Fatal("Read Failed.");
+                    Log.Fatal(e);
                     _readfailed = true;
+                    throw;
                 }
                 finally{Monitor.Exit(Locker1);}
             }
@@ -163,17 +157,17 @@ namespace UBCopy
                 }
                 _outfile = new FileStream(_outputfile, FileMode.Create, FileAccess.Write, FileShare.None, 8,
                                           FileOptions.WriteThrough);
-                _outfile.SetLength(_infilesize);
+
+                //set file size to minimum of one buffer to cut down on fragmentation
+                _outfile.SetLength(_infilesize > CopyBufferSize ? _infilesize : CopyBufferSize);
+
                 _outfile.Close();
                 _outfile.Dispose();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Failed to open for write set length");
-                    Log.Debug(e);
-                }
+                Log.Fatal("Failed to open for write set length");
+                Log.Fatal(e);
                 throw;
             }
 
@@ -189,16 +183,13 @@ namespace UBCopy
             }
             catch (Exception e)
             {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Failed to open for write unbuffered");
-                    Log.Debug("" + e.Message);
-                }
+                Log.Fatal("Failed to open for write unbuffered");
+                Log.Fatal("" + e.Message);
                 throw;
             }
 
-            double pctinc = 0.0;
-            double progress =pctinc;
+            var pctinc = 0.0;
+            var progress = pctinc;
 
             //progress stuff
             if (_reportprogress)
@@ -207,10 +198,7 @@ namespace UBCopy
                 {
                     Log.Debug("Report Progress : True");
                 }
-                if (_numchunks > 0)
-                {
                     pctinc = 100.00/_numchunks;
-                }
             }
             if (IsDebugEnabled)
             {
@@ -251,7 +239,7 @@ namespace UBCopy
                         if (_reportprogress && !IsDebugEnabled)
                         {
                             Console.SetCursorPosition(_origCol, _origRow);
-                            if (progress < 100 - pctinc)
+                            if (progress < 101 - pctinc)
                             {
                                 progress = progress + pctinc;
                                 Console.Write("%{0}", Math.Round(progress, 0));
@@ -264,11 +252,8 @@ namespace UBCopy
                     }
                     catch (Exception e)
                     {
-                        if (IsDebugEnabled)
-                        {
-                            Log.Debug("Write Unbuffered Failed");
-                            Log.Debug(e);
-                        }
+                        Log.Fatal("Write Unbuffered Failed");
+                        Log.Fatal(e);
                         throw;
                     }
                 }
@@ -361,23 +346,21 @@ namespace UBCopy
                 }
                 catch(Exception e)
                 {
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Create Directory Failed.");
-                        Log.Debug(e);
-                    }
+                    Log.Fatal("Create Directory Failed.");
+                    Log.Fatal(e);
                     Console.WriteLine("Create Directory Failed.");
                     Console.WriteLine(e.Message);
                     throw;
                 }
             }
 
+
             //get input file size for later use
             var inputFileInfo = new FileInfo(_inputfile);
             _infilesize = inputFileInfo.Length;
 
             //get number of buffer sized chunks used to correctly display percent complete.
-            _numchunks = (int)(_infilesize / CopyBufferSize);
+            _numchunks = (int)((_infilesize / CopyBufferSize) <= 0 ? (_infilesize / CopyBufferSize) : 1);
 
             if (IsDebugEnabled)
             {
@@ -385,32 +368,6 @@ namespace UBCopy
             }
             Console.WriteLine("File Copy Started");
 
-            if (_numchunks == 0)
-            {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Fell Back to UnBuffered Synchronous");
-                }
-                try
-                {
-                    BufferedCopy.SyncCopyFileUnbuffered(inputfile, outputfile, overwrite, movefile, checksum, buffersize,
-                                                        reportprogress);
-                }
-                catch(Exception e)
-                {
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Copy File Failed");
-                        Log.Debug(e);
-                    }
-                    Console.WriteLine("Copy File Failed");
-                    Console.WriteLine(e.Message);
-                    throw;
-                }
-
-            }
-            else
-            {
                 //create read thread and start it.
                 var readfile = new Thread(AsyncReadFile) {Name = "ReadThread", IsBackground = true};
                 readfile.Start();
@@ -435,7 +392,6 @@ namespace UBCopy
                 //wait for threads to finish
                 readfile.Join();
                 writefile.Join();
-            }
 
             //leave a blank line for the progress indicator
             if (_reportprogress)
@@ -503,8 +459,8 @@ namespace UBCopy
                 {
                     if (IsDebugEnabled)
                     {
-                        Log.Debug("File in use or locked cannot move file.");
-                        Log.Debug(ioex);
+                        Log.Error("File in use or locked cannot move file.");
+                        Log.Error(ioex);
                     }
                     Console.WriteLine("File in use or locked");
                     Console.WriteLine(ioex.Message);
@@ -513,8 +469,8 @@ namespace UBCopy
             {
                 if (IsDebugEnabled)
                 {
-                    Log.Debug("File Failed to Delete");
-                    Log.Debug(ex);
+                    Log.Error("File Failed to Delete");
+                    Log.Error(ex);
                 }
                 Console.WriteLine("File Failed to Delete");
                 Console.WriteLine(ex.Message);
@@ -531,7 +487,7 @@ namespace UBCopy
             fs.Close();
 
             var sb = new StringBuilder();
-            for (int i = 0; i < retVal.Length; i++)
+            for (var i = 0; i < retVal.Length; i++)
             {
                 sb.Append(retVal[i].ToString("x2"));
             }
@@ -547,7 +503,7 @@ namespace UBCopy
             fs.Close();
 
             var sb = new StringBuilder();
-            for (int i = 0; i < retVal.Length; i++)
+            for (var i = 0; i < retVal.Length; i++)
             {
                 sb.Append(retVal[i].ToString("x2"));
             }

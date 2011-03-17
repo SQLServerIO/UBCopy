@@ -26,7 +26,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-
 //TODO: add in directory copy
 //TODO: add in retry/copy restart maybe utilize a WAL type file structure? Would require resetting the length?
 //TODO: Yet more error checking!
@@ -39,9 +38,6 @@ using System.Diagnostics;
 using System.IO;
 using NDesk.Options;
 using log4net;
-// ReSharper disable RedundantUsingDirective
-using System.Configuration;
-// ReSharper restore RedundantUsingDirective
 
 namespace UBCopy
 {
@@ -62,8 +58,6 @@ namespace UBCopy
 
         private static int Main(string[] args)
         {
-//            log4net.Config.XmlConfigurator.Configure();
-
             if (IsDebugEnabled)
             {
                 Log.DebugFormat("ArchiveTable started at {0}", DateTime.Now);
@@ -142,6 +136,9 @@ namespace UBCopy
             }
             catch (Exception e)
             {
+                Log.Fatal("File Copy Aborted!");
+                Log.Fatal(e);
+
                 Console.WriteLine("Error: File copy aborted");
                 Console.WriteLine(e.Message);
                 return 0;
