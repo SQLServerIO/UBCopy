@@ -1,4 +1,4 @@
-UBCopy 1.5.2.1851
+UBCopy 1.7.30.17
 Usage: UBCopy [OPTIONS]
 Copy files using un-buffered IO and Overlapping buffers
 
