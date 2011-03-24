@@ -138,7 +138,7 @@ namespace UBCopy
                     _readfailed = true;
                     throw;
                 }
-                finally{Monitor.Exit(Locker1);}
+                finally { Monitor.Exit(Locker1); }
             }
             //clean up open handle
             _infile.Close();
@@ -147,31 +147,7 @@ namespace UBCopy
 
         private static void AsyncWriteFile()
         {
-            //open output file set length to prevent growth and file fragmentation and close it.
-            //We have to do it this way so we can do unbuffered writes to it later 
-            try
-            {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Open File Set Length");
-                }
-                _outfile = new FileStream(_outputfile, FileMode.Create, FileAccess.Write, FileShare.None, 8,
-                                          FileOptions.WriteThrough);
-
-                //set file size to minimum of one buffer to cut down on fragmentation
-                _outfile.SetLength(_infilesize > CopyBufferSize ? _infilesize : CopyBufferSize);
-
-                _outfile.Close();
-                _outfile.Dispose();
-            }
-            catch (Exception e)
-            {
-                Log.Fatal("Failed to open for write set length");
-                Log.Fatal(e);
-                throw;
-            }
-
-            //open file for write unbuffered
+            //open file for write unbuffered and set length to prevent growth and file fragmentation
             try
             {
                 if (IsDebugEnabled)
@@ -180,11 +156,14 @@ namespace UBCopy
                 }
                 _outfile = new FileStream(_outputfile, FileMode.Open, FileAccess.Write, FileShare.None, 8,
                                           FileOptions.WriteThrough | FileFlagNoBuffering);
+
+                //set file size to minimum of one buffer to cut down on fragmentation
+                _outfile.SetLength((long)(_infilesize > CopyBufferSize ? (Math.Ceiling((double)_infilesize / CopyBufferSize) * CopyBufferSize) : CopyBufferSize));
             }
             catch (Exception e)
             {
                 Log.Fatal("Failed to open for write unbuffered");
-                Log.Fatal("" + e.Message);
+                Log.Fatal(e);
                 throw;
             }
 
@@ -198,7 +177,7 @@ namespace UBCopy
                 {
                     Log.Debug("Report Progress : True");
                 }
-                    pctinc = 100.00/_numchunks;
+                pctinc = 100.00 / _numchunks;
             }
             if (IsDebugEnabled)
             {
@@ -212,53 +191,53 @@ namespace UBCopy
                     Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
                 }
                 lock (Locker1)
+                {
+                    if (IsDebugEnabled)
                     {
-                        if (IsDebugEnabled)
-                        {
-                            Log.Debug("Write Unbuffered Lock");
-                        }
-                        while (!_buffer2Dirty) Monitor.Wait(Locker1);
-                        if (IsDebugEnabled)
-                        {
-                            Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
-                        }
-                        Buffer.BlockCopy(Buffer2, 0, Buffer3, 0, _bytesRead2);
-                        _buffer2Dirty = false;
-                        if (IsDebugEnabled)
-                        {
-                            Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
-                        }
-                        _totalbyteswritten = _totalbyteswritten + CopyBufferSize;
-                        if (IsDebugEnabled)
-                        {
-                            Log.Debug("Written Unbuffered : " + _totalbyteswritten);
-                        }
-                        Monitor.PulseAll(Locker1);
-                        //fancy dan in place percent update on each write.
+                        Log.Debug("Write Unbuffered Lock");
+                    }
+                    while (!_buffer2Dirty) Monitor.Wait(Locker1);
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
+                    }
+                    Buffer.BlockCopy(Buffer2, 0, Buffer3, 0, _bytesRead2);
+                    _buffer2Dirty = false;
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
+                    }
+                    _totalbyteswritten = _totalbyteswritten + CopyBufferSize;
+                    if (IsDebugEnabled)
+                    {
+                        Log.Debug("Written Unbuffered : " + _totalbyteswritten);
+                    }
+                    Monitor.PulseAll(Locker1);
+                    //fancy dan in place percent update on each write.
 
-                        if (_reportprogress && !IsDebugEnabled)
+                    if (_reportprogress && !IsDebugEnabled)
+                    {
+                        Console.SetCursorPosition(_origCol, _origRow);
+                        if (progress < 101 - pctinc)
                         {
-                            Console.SetCursorPosition(_origCol, _origRow);
-                            if (progress < 101 - pctinc)
-                            {
-                                progress = progress + pctinc;
-                                Console.Write("%{0}", Math.Round(progress, 0));
-                            }
+                            progress = progress + pctinc;
+                            Console.Write("%{0}", Math.Round(progress, 0));
                         }
-                    }
-                    try
-                    {
-                        _outfile.Write(Buffer3, 0, CopyBufferSize);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Fatal("Write Unbuffered Failed");
-                        Log.Fatal(e);
-                        throw;
                     }
                 }
+                try
+                {
+                    _outfile.Write(Buffer3, 0, CopyBufferSize);
+                }
+                catch (Exception e)
+                {
+                    Log.Fatal("Write Unbuffered Failed");
+                    Log.Fatal(e);
+                    throw;
+                }
+            }
 
-            //close the file handle that was using unbuffered and write through
+            //close the file handle that was using unbuffered and write through and move the EOF pointer.
             Log.Debug("Close Write File Unbuffered");
             _outfile.Close();
             _outfile.Dispose();
@@ -344,7 +323,7 @@ namespace UBCopy
                     Directory.CreateDirectory(Path.GetDirectoryName(outputfile));
                     // ReSharper restore AssignNullToNotNullAttribute
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     Log.Fatal("Create Directory Failed.");
                     Log.Fatal(e);
@@ -368,34 +347,34 @@ namespace UBCopy
             }
             Console.WriteLine("File Copy Started");
 
-                //create read thread and start it.
-                var readfile = new Thread(AsyncReadFile) {Name = "ReadThread", IsBackground = true};
-                readfile.Start();
+            //create read thread and start it.
+            var readfile = new Thread(AsyncReadFile) { Name = "ReadThread", IsBackground = true };
+            readfile.Start();
 
-                if (IsDebugEnabled)
-                {
-                    //debug show if we are an even multiple of the file size
-                    Log.Debug("Number of Chunks: " + _numchunks);
-                }
+            if (IsDebugEnabled)
+            {
+                //debug show if we are an even multiple of the file size
+                Log.Debug("Number of Chunks: " + _numchunks);
+            }
 
-                //create write thread and start it.
-                var writefile = new Thread(AsyncWriteFile) {Name = "WriteThread", IsBackground = true};
-                writefile.Start();
+            //create write thread and start it.
+            var writefile = new Thread(AsyncWriteFile) { Name = "WriteThread", IsBackground = true };
+            writefile.Start();
 
-                if (_reportprogress)
-                {
-                    //set fancy curor position
-                    _origRow = Console.CursorTop;
-                    _origCol = Console.CursorLeft;
-                }
+            if (_reportprogress)
+            {
+                //set fancy curor position
+                _origRow = Console.CursorTop;
+                _origCol = Console.CursorLeft;
+            }
 
-                //wait for threads to finish
-                readfile.Join();
-                writefile.Join();
+            //wait for threads to finish
+            readfile.Join();
+            writefile.Join();
 
             //leave a blank line for the progress indicator
             if (_reportprogress)
-            Console.WriteLine();
+                Console.WriteLine();
 
             if (IsDebugEnabled)
             {
@@ -453,7 +432,7 @@ namespace UBCopy
             if (movefile && File.Exists(inputfile) && File.Exists(outputfile))
                 try
                 {
-                    File.Delete(inputfile);    
+                    File.Delete(inputfile);
                 }
                 catch (IOException ioex)
                 {
@@ -465,16 +444,16 @@ namespace UBCopy
                     Console.WriteLine("File in use or locked");
                     Console.WriteLine(ioex.Message);
                 }
-            catch(Exception ex)
-            {
-                if (IsDebugEnabled)
+                catch (Exception ex)
                 {
-                    Log.Error("File Failed to Delete");
-                    Log.Error(ex);
+                    if (IsDebugEnabled)
+                    {
+                        Log.Error("File Failed to Delete");
+                        Log.Error(ex);
+                    }
+                    Console.WriteLine("File Failed to Delete");
+                    Console.WriteLine(ex.Message);
                 }
-                Console.WriteLine("File Failed to Delete");
-                Console.WriteLine(ex.Message);
-            }
             return 1;
         }
 
