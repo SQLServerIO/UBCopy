@@ -8,7 +8,7 @@ Elapsed Seconds  : 1.306
 Megabytes/sec    : 698.22
 Done.
  
-FastCopy 2.08 --http://ipmsg.org/tools/fastcopy.html.en
+FastCopy 2.08 -- http://ipmsg.org/tools/fastcopy.html.en
 TotalRead = 869.6 MB
 TotalWrite = 869.6 MB
 TotalFiles = 1 (0)
