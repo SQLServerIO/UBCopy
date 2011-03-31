@@ -312,15 +312,15 @@ namespace UBCopy
             var inputFileInfo = new FileInfo(_inputfile);
             _infilesize = inputFileInfo.Length;
 
+            //setup single buffer size in megabytes, remember this will be x3.
+            CopyBufferSize = buffersize * 1048576;
+
             if (_infilesize < UBCopySetup.SynchronousFileCopySize)
             {
-                BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576);
+                BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576,out _readhash);
             }
             else
             {
-                //setup single buffer size in megabytes, remember this will be x3.
-                CopyBufferSize = buffersize * 1048576;
-
                 //buffer read
                 Buffer1 = new byte[CopyBufferSize];
 

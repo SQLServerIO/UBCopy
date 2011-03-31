@@ -318,7 +318,7 @@ namespace UBCopy
 
                 if (_infilesize < 256 * 1024)
                 {
-                    BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576);
+                    BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576, out _readhash);
                 }
                 else
                 {

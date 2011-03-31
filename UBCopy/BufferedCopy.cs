@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Security.Cryptography;
 using log4net;
 
 namespace UBCopy
@@ -11,8 +12,10 @@ namespace UBCopy
 
         const FileOptions FileFlagNoBuffering = (FileOptions)0x20000000;
 
-        public static int SyncCopyFileUnbuffered(string inputfile, string outputfile, int buffersize)
+        public static int SyncCopyFileUnbuffered(string inputfile, string outputfile, int buffersize, out byte[] readhash)
         {
+            var md5 = MD5.Create();
+
             if (IsDebugEnabled)
             {
                 Log.Debug("Starting SyncCopyFileUnbuffered");
@@ -54,7 +57,21 @@ namespace UBCopy
                 while ((bytesRead = infile.Read(buffer, 0, buffer.Length)) != 0)
                 {
                     outfile.Write(buffer, 0, bytesRead);
+                    if (UBCopySetup.Checksumfiles)
+                        md5.TransformBlock(buffer, 0, bytesRead, buffer, 0);
+
                 }
+                // For last block:
+                if (UBCopySetup.Checksumfiles)
+                {
+                    md5.TransformFinalBlock(buffer, 0, bytesRead);
+                    readhash = md5.Hash;
+                }
+                else
+                {
+                    readhash = new byte[1];
+                }
+
             }
             catch (Exception e)
             {
@@ -65,6 +82,7 @@ namespace UBCopy
                 }
                 if (File.Exists(outputfile))
                     File.Delete(outputfile);
+                readhash = new byte[1];
                 return 0;
             }
             finally
