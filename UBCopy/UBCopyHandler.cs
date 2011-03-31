@@ -26,164 +26,30 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using System.Management;
+using log4net;
+using TestMultithreadFileCopy;
+
 namespace UBCopy
 {
-    public static class UBCopySetup
-    {
-        public static Stack<string> FileList = new Stack<string>(50000);
-
-        //hold command line options
-        //public static string Sourcefile;
-        public static string Destinationfile;
-        public static bool Overwritedestination = true;
-        //we set an inital buffer size to be on the safe side.
-        public static int Buffersize = 16;
-        public static bool Checksumfiles;
-        public static bool Reportprogres;
-        public static bool Movefile;
-        public static int NumberThreadsFileSize = 1;
-
-        public static bool Listlocked;
-
-        public static readonly object DictonaryLocker = new object();
-
-        public static void TraverseTree(string root)
-        {
-            var dirs = new Stack<string>(20);
-
-            if (!Directory.Exists(root))
-            {
-                throw new ArgumentException();
-            }
-            dirs.Push(root);
-
-            while (dirs.Count > 0)
-            {
-                var currentDir = dirs.Pop();
-                string[] subDirs;
-                try
-                {
-                    subDirs = Directory.GetDirectories(currentDir);
-                }
-                catch (UnauthorizedAccessException e)
-                {
-                    Console.WriteLine(e.Message);
-                    continue;
-                }
-                catch (DirectoryNotFoundException e)
-                {
-                    Console.WriteLine(e.Message);
-                    continue;
-                }
-
-                string[] files;
-                try
-                {
-                    files = Directory.GetFiles(currentDir);
-                }
-
-                catch (UnauthorizedAccessException e)
-                {
-                    Console.WriteLine(e.Message);
-                    continue;
-                }
-
-                catch (DirectoryNotFoundException e)
-                {
-                    Console.WriteLine(e.Message);
-                    continue;
-                }
-                foreach (var str in subDirs)
-                    dirs.Push(str);
-
-                foreach (var file in files)
-                {
-                    if (file.Length < 261)
-                    {
-                        try
-                        {
-                            FileList.Push(file);
-                        }
-                        catch (FileNotFoundException)
-                        {
-                            Console.WriteLine("File Not Found:{0} ", file);
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("File Name or Path is too long:{0}", file);
-                    }
-                }
-            }
-        }
-
-    }
-
-    class UBCopyProcessor
-    {
-        //private static readonly object DictonaryLocker = new object();
-
-        private readonly ManualResetEvent _doneEvent;
-
-        public UBCopyProcessor(ManualResetEvent doneEvent)
-        {
-            _doneEvent = doneEvent;
-        }
-
-        public void MyProcessThreadPoolCallback(Object threadContext)
-        {
-            UBCopyFile();
-            _doneEvent.Set();
-        }
-
-        private static void UBCopyFile()
-        {
-            //var sw = new Stopwatch();
-            string file;
-            lock (UBCopySetup.DictonaryLocker)
-            {
-                file = UBCopySetup.FileList.Pop();
-            }
-            // ReSharper disable AssignNullToNotNullAttribute
-            string destinationfile = Path.Combine(UBCopySetup.Destinationfile, Path.GetFileName(file));
-            // ReSharper restore AssignNullToNotNullAttribute
-            var f = new FileInfo(file);
-            var fileSize = f.Length;
-            Debug.WriteLine("Thread                      :" + Thread.CurrentThread.ManagedThreadId);
-            Debug.WriteLine("File Name                   : " + file);
-
-
-            if (fileSize < UBCopySetup.NumberThreadsFileSize)
-            {
-                File.Copy(file, destinationfile, UBCopySetup.Overwritedestination);
-            }
-            else
-            {
-                AsyncUnbuffCopy.AsyncCopyFileUnbuffered(file, destinationfile, UBCopySetup.Overwritedestination,
-                                                        UBCopySetup.Movefile,
-                                                        UBCopySetup.Checksumfiles, UBCopySetup.Buffersize,
-                                                        UBCopySetup.Reportprogres);
-            }
-        }
-    }
-
-
     public class UBCopyHandler
     {
-        public static int ProcessFiles(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress, int numberthreads, int numberthreadsfilesize)
+        private static readonly ILog Log = LogManager.GetLogger(typeof(UBCopyHandler));
+
+        public static int ProcessFiles(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress, int numberthreads, int synchronousFileCopySize)
         {
+            if (string.IsNullOrEmpty(outputfile))
+                throw new Exception("Target cannot be empty");
+
+            var inputIsFile = false;
             UBCopySetup.Buffersize = buffersize;
             UBCopySetup.Checksumfiles = checksum;
             UBCopySetup.Destinationfile = outputfile;
             UBCopySetup.Movefile = movefile;
             UBCopySetup.Reportprogres = reportprogress;
-            UBCopySetup.NumberThreadsFileSize = numberthreadsfilesize * 1024;
+            UBCopySetup.SynchronousFileCopySize = synchronousFileCopySize * 1024 * 1024;
 
             try
             {
@@ -197,137 +63,137 @@ namespace UBCopy
                 }
                 else
                 {
+                    inputIsFile = true;
                     UBCopySetup.FileList.Push(inputfile);
                 }
 
             }
             catch (Exception)
             {
-                Console.WriteLine("Invalid path or filename:{0}", inputfile);
+                Log.ErrorFormat("Invalid path or filename:{0}", inputfile);
                 return 0;
             }
 
-            //create the directory if it doesn't exist
-            if (!Directory.Exists(outputfile))
+            if (!inputIsFile)
             {
-                try
+                var outputExistsAttributes = IsFileOrDirectoryAndExists(outputfile);
+
+                if (outputExistsAttributes == 1)
                 {
-                    // ReSharper disable AssignNullToNotNullAttribute
-                    Directory.CreateDirectory(Path.GetDirectoryName(outputfile));
-                    // ReSharper restore AssignNullToNotNullAttribute
+                    if (UBCopySetup.FileList.Count > 1)
+                    {
+                        Log.Error("Cannot write multiple files to a single target file.");
+                        return 0;
+                    }
                 }
-                catch (Exception e)
+                if (outputExistsAttributes == 2)
                 {
-                    Console.WriteLine("Create Directory Failed.");
-                    Console.WriteLine(e.Message);
-                    throw;
+                    if (UBCopySetup.FileList.Count == 1)
+                    {
+                        Log.Error("No Output File Name Specified.");
+                        return 0;
+                    }
                 }
+                if (outputExistsAttributes == 3)
+                {
+                    try
+                    {
+                        var di = Directory.CreateDirectory(outputfile);
+                        Log.DebugFormat("The directory was created successfully at {0}.",
+                                        Directory.GetCreationTime(outputfile));
+                        Log.Debug(di.Attributes);
+                    }
+                    catch (Exception)
+                    {
+                        if (File.Exists(outputfile))
+                        {
+                            Log.Fatal("Create Output Directory Failed.");
+                            throw;
+                        }
+                    }
+                }
+
+                if (UBCopySetup.FileList.Count < numberthreads)
+                {
+                    numberthreads = UBCopySetup.FileList.Count;
+                }
+
+                Log.InfoFormat("Number of Files To Process: {0}", UBCopySetup.FileList.Count);
+                var sw = new Stopwatch();
+                sw.Start();
+                var ftph = UBCopySetup.FileList.Count;
+
+                if (numberthreads == 1)
+                {
+                    foreach (var file in UBCopySetup.FileList)
+                    {
+                        var destinationfile = Path.Combine(UBCopySetup.Destinationfile, file.Replace(Path.GetPathRoot(file), ""));
+                        var fileSize = new FileInfo(file);
+
+                        Log.DebugFormat("File Size: {0}", fileSize.Length);
+                        UBCopySetup.BytesCopied += fileSize.Length;
+
+                        AsyncUnbuffCopyStatic.AsyncCopyFileUnbuffered(file, destinationfile,
+                                                                      UBCopySetup.Overwritedestination,
+                                                                      UBCopySetup.Movefile,
+                                                                      UBCopySetup.Checksumfiles, UBCopySetup.Buffersize,
+                                                                      UBCopySetup.Reportprogres);
+                    }
+
+                }
+                else
+                {
+                    var doneEvents = new ManualResetEvent[numberthreads];
+                    var hashFilesArray = new UBCopyProcessor[numberthreads];
+                    var ftp = UBCopySetup.FileList.Count;
+
+
+                    while (ftp > 0)
+                    {
+                        // Configure and launch threads using ThreadPool:
+                        if (ftp < numberthreads)
+                            numberthreads = ftp;
+                        for (var i = 0; i < numberthreads; i++)
+                        {
+                            doneEvents[i] = new ManualResetEvent(false);
+                            var p = new UBCopyProcessor(doneEvents[i]);
+                            hashFilesArray[i] = p;
+                            ThreadPool.QueueUserWorkItem(p.MyProcessThreadPoolCallback, i);
+                        }
+
+                        // Wait for all threads in pool to finished processing
+                        WaitHandle.WaitAll(doneEvents);
+                        ftp = UBCopySetup.FileList.Count;
+                    }
+                }
+                sw.Stop();
+                Log.InfoFormat("ElapsedSeconds      : {0}", (sw.ElapsedMilliseconds / 1000.00));
+                Log.InfoFormat("Files Per Second    : {0}", ftph / (sw.ElapsedMilliseconds / 1000.00));
+                Log.InfoFormat("Megabytes per Second: {0}", (UBCopySetup.BytesCopied / (sw.ElapsedMilliseconds / 1000.00)) / 1048576);
+                return 1;
             }
 
+            return 1;
+        }
+
+        private static int IsFileOrDirectoryAndExists(string path)
+        {
             try
             {
                 // get the file attributes for file or directory
-                var attr = File.GetAttributes(outputfile);
+                var attr = File.GetAttributes(path);
 
                 //detect whether its a directory or file
                 if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
                 {
-                    if (UBCopySetup.FileList.Count == 1)
-                    {
-                        Console.WriteLine("No Output File Name Specified.");
-                        return 0;
-                    }
+                    return 2;
                 }
-                else
-                {
-                    if (UBCopySetup.FileList.Count > 1)
-                    {
-                        Console.WriteLine("Cannot write multiple files to a single target file.");
-                        return 0;
-                    }
-                }
-
+                return 1;
             }
-            catch (Exception)
+            catch
             {
-                Console.WriteLine("Invalid path or filename:{0}", outputfile);
-                return 0;
+                return 3;
             }
-            var numprocs = numberthreads;
-            var numlogprocs = numberthreads;
-
-            if (numberthreads > 1)
-            {
-
-                try
-                {
-                    var mgmtObjects = new ManagementObjectSearcher("Select * from Win32_ComputerSystem");
-                    foreach (var item in mgmtObjects.Get())
-                    {
-                        numprocs = Convert.ToInt32(item["NumberOfProcessors"].ToString());
-                        numlogprocs = Convert.ToInt32(item["NumberOfLogicalProcessors"].ToString());
-                    }
-
-                    if (numlogprocs == 0)
-                        numlogprocs = numprocs;
-
-                    if (numprocs == 0)
-                        numlogprocs = 1;
-
-                    if (numberthreads > numprocs || numberthreads > numlogprocs)
-                        numlogprocs = numprocs;
-                }
-                catch (Exception)
-                {
-                    numlogprocs = numberthreads;
-                }
-            }
-            else
-            {
-                numlogprocs = 1;
-            }
-            Console.WriteLine("Number of Threads: {0}",numlogprocs);
-
-            var totalCountToProcess = numlogprocs;
-
-            if (UBCopySetup.FileList.Count < totalCountToProcess)
-            {
-                totalCountToProcess = UBCopySetup.FileList.Count;
-            }
-            
-            Console.WriteLine("Number of Files To Process: {0}", UBCopySetup.FileList.Count);
-            var ftph = UBCopySetup.FileList.Count;
-
-            var doneEvents = new ManualResetEvent[totalCountToProcess];
-            var hashFilesArray = new UBCopyProcessor[totalCountToProcess];
-            var ftp = UBCopySetup.FileList.Count;
-
-            var sw = new Stopwatch();
-            sw.Start();
-
-            while (ftp > 0)
-            {
-//                Console.WriteLine(UBCopySetup.FileList.Count);
-                // Configure and launch threads using ThreadPool:
-                if (ftp < totalCountToProcess)
-                    totalCountToProcess = ftp;
-                for (var i = 0; i < totalCountToProcess; i++)
-                {
-                    doneEvents[i] = new ManualResetEvent(false);
-                    var p = new UBCopyProcessor(doneEvents[i]);
-                    hashFilesArray[i] = p;
-                    ThreadPool.QueueUserWorkItem(p.MyProcessThreadPoolCallback, i);
-                }
-
-                // Wait for all threads in pool to finished processing
-                WaitHandle.WaitAll(doneEvents);
-                ftp = UBCopySetup.FileList.Count;
-            }
-            sw.Stop();
-
-            Console.WriteLine("UBCopy - ElapsedSeconds    : " + (sw.ElapsedMilliseconds / 1000.00));
-            Console.WriteLine("Files Per Second: {0}",ftph/(sw.ElapsedMilliseconds / 1000.00));
-            return 1;
         }
     }
 }

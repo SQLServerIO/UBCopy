@@ -75,6 +75,7 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Management" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -86,10 +87,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncUnbuffCopy.cs" />
+    <Compile Include="AsyncUnbuffCopyStatic.cs" />
+    <Compile Include="BufferedCopy.cs" />
     <Compile Include="ExeptionRenderer.cs" />
     <Compile Include="Options.cs" />
+    <Compile Include="UBCopyHandler.cs" />
     <Compile Include="UBCopyMain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="UBCopyProcessor.cs" />
+    <Compile Include="UBCopySetup.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">

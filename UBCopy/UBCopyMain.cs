@@ -26,16 +26,8 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-//TODO: add in directory copy
-//TODO: add in retry/copy restart maybe utilize a WAL type file structure? Would require resetting the length?
-//TODO: Yet more error checking!
-//TODO: Command line compattible with robocopy?
-//TODO: Command line compattible with xcopy?
-//TODO: Command line compattible with copy?
-
 using System;
 using System.Diagnostics;
-using System.IO;
 using NDesk.Options;
 using log4net;
 
@@ -52,6 +44,8 @@ namespace UBCopy
         private static bool _overwritedestination = true;
         //we set an inital buffer size to be on the safe side.
         private static int _buffersize = 16;
+        private static int _threads = 2;
+        private static int _smallfilesize = 16;
         private static bool _checksumfiles;
         private static bool _reportprogres;
         private static bool _movefile;
@@ -87,17 +81,13 @@ namespace UBCopy
                     _reportprogres = false;
                 }
 
-                var f = new FileInfo(_sourcefile);
-                long fileSize = f.Length;
-
                 var sw = new Stopwatch();
                 sw.Start();
                 try
                 {
-
-                AsyncUnbuffCopy.AsyncCopyFileUnbuffered(_sourcefile, _destinationfile, _overwritedestination,
+                    UBCopyHandler.ProcessFiles(_sourcefile, _destinationfile, _overwritedestination,
                                                             _movefile,
-                                                            _checksumfiles, _buffersize, _reportprogres);
+                                                            _checksumfiles, _buffersize, _reportprogres, _threads, _smallfilesize);
                 }
                 catch (Exception ex)
                 {
@@ -109,22 +99,9 @@ namespace UBCopy
                 }
 
                 sw.Stop();
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("ElapsedMilliseconds: " + sw.ElapsedMilliseconds);
-                    Log.Debug("ElapsedSeconds     : " + (fileSize/(float) sw.ElapsedMilliseconds/1000.00));
-                    Log.DebugFormat("File Size MB     : {0}", Math.Round(fileSize / 1024.00 / 1024.00, 2));
-                    Log.DebugFormat("Elapsed Seconds  : {0}", sw.ElapsedMilliseconds / 1000.00);
-                    Log.DebugFormat("Megabytes/sec    : {0}", Math.Round(fileSize / (float)sw.ElapsedMilliseconds / 1000.00, 2));
-                    Log.Debug("Done.");
-
-                }
-                Console.WriteLine("File Size MB     : {0}",Math.Round(fileSize/1024.00/1024.00,2));
-                Console.WriteLine("Elapsed Seconds  : {0}", sw.ElapsedMilliseconds / 1000.00);
-                Console.WriteLine("Megabytes/sec    : {0}", Math.Round(fileSize / (float)sw.ElapsedMilliseconds / 1000.00, 2));
-
-
-                Console.WriteLine("Done.");
+                Log.InfoFormat("Number of Byes Copied : {0}", UBCopySetup.BytesCopied);
+                Log.InfoFormat("Elapsed Seconds  : {0}", sw.ElapsedMilliseconds / 1000.00);
+                Log.Info("Done.");
 
 #if DEBUG
                 {
@@ -169,6 +146,12 @@ namespace UBCopy
 
                           { "b:|buffersize:", "size in Megabytes, maximum of 32",
                           (int v) => _buffersize = v},
+
+                          { "t:|threads:", "number of threads to use for small file copying",
+                          (int v) => _threads = v},
+
+                          { "z:|filesize:", "smallest file size for threaded copy, in megabytes",
+                          (int v) => _smallfilesize = v},
 
                           { "r:|reportprogress:", "True give a visual indicator of the copy progress",
                           (bool v) => _reportprogres = v},
