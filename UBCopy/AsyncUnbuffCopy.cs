@@ -127,7 +127,6 @@ namespace UBCopy
                     Monitor.PulseAll(Locker1);
                     if (IsDebugEnabled)
                     {
-
                         Log.Debug("Read       : " + _totalbytesread);
                     }
                 }
@@ -154,11 +153,10 @@ namespace UBCopy
                 {
                     Log.Debug("Open File Write Unbuffered");
                 }
-                _outfile = new FileStream(_outputfile, FileMode.Open, FileAccess.Write, FileShare.None, 8,
-                                          FileOptions.WriteThrough | FileFlagNoBuffering);
-
+                    _outfile = new FileStream(_outputfile, FileMode.Create, FileAccess.Write, FileShare.None, 8,
+                                              FileOptions.WriteThrough | FileFlagNoBuffering);
                 //set file size to minimum of one buffer to cut down on fragmentation
-                _outfile.SetLength((long)(_infilesize > CopyBufferSize ? (Math.Ceiling((double)_infilesize / CopyBufferSize) * CopyBufferSize) : CopyBufferSize));
+                _outfile.SetLength((long)((Math.Ceiling((double)_infilesize / CopyBufferSize) * CopyBufferSize)));
             }
             catch (Exception e)
             {
