@@ -37,7 +37,7 @@ Eight Threads doing the work on small files.
 This sample test copy was done on an HP DL380G7 with 96 15k SAS drives attached to two P411 Controllers and one Fusion-io Duo 640. The file was read from the Fusion-io card and written to the storage array. I tested on such a high end system to make sure I was working through all the potential bottlenecks in the code.
 You can also read about it in this blog post http://sqlserverio.com/2010/10/07/at-the-end-of-the-io-road-with-c-pave-new-road/ 
 
-UBCopy 1.7.30.17
+UBCopy 1.7.41.24
 Usage: UBCopy [OPTIONS]
 Copy files using un-buffered IO and Overlapping buffers
 
