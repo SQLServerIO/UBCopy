@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Diagnostics;
+using System.Threading;
 using log4net;
 
 namespace UBCopy
@@ -12,9 +14,11 @@ namespace UBCopy
 
         const FileOptions FileFlagNoBuffering = (FileOptions)0x20000000;
 
-        public static int SyncCopyFileUnbuffered(string inputfile, string outputfile, int buffersize, out byte[] readhash)
+        public static int SyncCopyFileUnbuffered(string inputfile, string outputfile, int buffersize,int bytessecond, out byte[] readhash)
         {
             var md5 = MD5.Create();
+            var throttleSw = new Stopwatch();
+            long elapsedms = 0;
 
             if (IsDebugEnabled)
             {
@@ -56,9 +60,29 @@ namespace UBCopy
                 int bytesRead;
                 while ((bytesRead = infile.Read(buffer, 0, buffer.Length)) != 0)
                 {
-                    outfile.Write(buffer, 0, bytesRead);
-                    if (UBCopySetup.Checksumfiles)
-                        md5.TransformBlock(buffer, 0, bytesRead, buffer, 0);
+                    if (bytessecond > 0)
+                    {
+                        throttleSw.Start();
+                        outfile.Write(buffer, 0, bytesRead);
+                        if (UBCopySetup.Checksumfiles)
+                            md5.TransformBlock(buffer, 0, bytesRead, buffer, 0);
+                        throttleSw.Stop();
+                        Log.DebugFormat("Time To Write: {0} ", throttleSw.ElapsedMilliseconds);
+                        elapsedms = throttleSw.ElapsedMilliseconds;
+
+                        if (bytessecond >= bytesRead && elapsedms < 1000)
+                        {
+                            Throttle(elapsedms);
+                            throttleSw.Reset();
+                            elapsedms = 0;
+                        }
+                    }
+                    else
+                    {
+                        outfile.Write(buffer, 0, bytesRead);
+                        if (UBCopySetup.Checksumfiles)
+                            md5.TransformBlock(buffer, 0, bytesRead, buffer, 0);
+                    }
 
                 }
                 // For last block:
@@ -100,5 +124,32 @@ namespace UBCopy
 
             return 0;
         }
+        /// <summary>
+        /// Throttles for the specified buffer by milliseconds
+        /// </summary>
+        /// <param name="elapsedMilliseconds">number of milliseconds elapsed</param>
+        static private void Throttle(long elapsedMilliseconds)
+        {
+            if (elapsedMilliseconds > 0)
+            {
+                // Calculate the time to sleep.
+                int toSleep = (int)(1000 - elapsedMilliseconds);
+
+                if (toSleep > 1)
+                {
+                    Log.Debug("Throttling");
+                    try
+                    {
+                        // The time to sleep is more then a millisecond, so sleep.
+                        Thread.Sleep(toSleep);
+                    }
+                    catch (ThreadAbortException)
+                    {
+                        // Eatup ThreadAbortException.
+                    }
+                }
+            }
+        }
+
     }
 }

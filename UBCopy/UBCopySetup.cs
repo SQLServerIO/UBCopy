@@ -49,6 +49,7 @@ namespace UBCopy
         public static bool Movefile;
         public static int SynchronousFileCopySize = 32;
         public static Int64 BytesCopied = 0;
+        public static int BytesSecond = 0;
 
         public static bool Listlocked;
 

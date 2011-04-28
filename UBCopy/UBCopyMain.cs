@@ -45,6 +45,7 @@ namespace UBCopy
         //we set an inital buffer size to be on the safe side.
         private static int _buffersize = 16;
         private static int _threads = 2;
+        private static int _bytessecond = 0;
         private static int _smallfilesize = 16;
         private static bool _checksumfiles;
         private static bool _reportprogres;
@@ -87,7 +88,7 @@ namespace UBCopy
                 {
                     UBCopyHandler.ProcessFiles(_sourcefile, _destinationfile, _overwritedestination,
                                                             _movefile,
-                                                            _checksumfiles, _buffersize, _reportprogres, _threads, _smallfilesize);
+                                                            _checksumfiles, _buffersize, _reportprogres, _threads, _smallfilesize,_bytessecond);
                 }
                 catch (Exception ex)
                 {
@@ -102,7 +103,6 @@ namespace UBCopy
                 Log.InfoFormat("Number of Byes Copied : {0}", UBCopySetup.BytesCopied);
                 Log.InfoFormat("Elapsed Seconds  : {0}", sw.ElapsedMilliseconds / 1000.00);
                 Log.Info("Done.");
-
 #if DEBUG
                 {
                     Console.ReadKey();
@@ -118,7 +118,13 @@ namespace UBCopy
 
                 Console.WriteLine("Error: File copy aborted");
                 Console.WriteLine(e.Message);
+#if DEBUG
+                {
+                    Console.ReadKey();
+                }
+#endif
                 return 0;
+
             }
 
         }
@@ -149,6 +155,9 @@ namespace UBCopy
 
                           { "t:|threads:", "number of threads to use for small file copying",
                           (int v) => _threads = v},
+
+                          { "l:|LimitBandwidth:", "Maxmum number of bytes a second sets thread count to 1",
+                          (int v) => _bytessecond = v},
 
                           { "z:|filesize:", "smallest file size for threaded copy, in megabytes",
                           (int v) => _smallfilesize = v},

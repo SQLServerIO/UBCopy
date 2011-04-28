@@ -261,7 +261,7 @@ namespace UBCopy
             }
         }
 
-        public int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
+        public int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress, int bytessecond)
         {
             if (_isDebugEnabled)
             {
@@ -317,7 +317,7 @@ namespace UBCopy
 
             if (_infilesize < UBCopySetup.SynchronousFileCopySize)
             {
-                BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576,out _readhash);
+                BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576, bytessecond ,out _readhash);
             }
             else
             {
