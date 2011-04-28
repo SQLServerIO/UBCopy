@@ -37,71 +37,79 @@ namespace UBCopy
 {
     internal class AsyncUnbuffCopy
     {
+        #region setup
         private static readonly ILog Log = LogManager.GetLogger(typeof(AsyncUnbuffCopy));
-        private static readonly bool IsDebugEnabled = Log.IsDebugEnabled;
+        private readonly bool _isDebugEnabled = Log.IsDebugEnabled;
 
         //file names
-        private static string _inputfile;
-        private static string _outputfile;
+        private string _inputfile;
+        private string _outputfile;
 
         //checksum holders
-        private static string _infilechecksum;
-        private static string _outfilechecksum;
+        //        private  string _infilechecksum;
+        //        private  string _outfilechecksum;
+
+        private bool _checksum;
 
         //show write progress
-        private static bool _reportprogress;
+        private bool _reportprogress;
 
         //cursor position
-        private static int _origRow;
-        private static int _origCol;
+        private int _origRow;
+        private int _origCol;
 
         //number of chunks to copy
-        private static int _numchunks;
+        private int _numchunks;
 
         //track read state and read failed state
-        private static bool _readfailed;
+        private bool _readfailed;
 
         //syncronization object
-        private static readonly object Locker1 = new object();
+        private readonly object _locker1 = new object();
 
         //buffer size
-        public static int CopyBufferSize;
-        private static long _infilesize;
+        public int CopyBufferSize;
+        private long _infilesize;
 
         //buffer read
-        public static byte[] Buffer1;
-        private static int _bytesRead1;
+        public byte[] Buffer1;
+        private int _bytesRead1;
 
         //buffer overlap
-        public static byte[] Buffer2;
-        private static bool _buffer2Dirty;
-        private static int _bytesRead2;
+        public byte[] Buffer2;
+        private bool _buffer2Dirty;
 
         //buffer write
-        public static byte[] Buffer3;
+        public byte[] Buffer3;
 
         //total bytes read
-        private static long _totalbytesread;
-        private static long _totalbyteswritten;
+        private long _totalbytesread;
+        private long _totalbyteswritten;
 
         //filestreams
-        private static FileStream _infile;
-        private static FileStream _outfile;
+        private FileStream _infile;
+        private FileStream _outfile;
 
         //secret sauce for unbuffered IO
         const FileOptions FileFlagNoBuffering = (FileOptions)0x20000000;
 
-        private static void AsyncReadFile()
+        private byte[] _readhash;
+        private byte[] _writehash;
+        #endregion
+
+        private void AsyncReadFile()
         {
+            var md5 = MD5.Create();
+
             //open input file
             try
             {
                 _infile = new FileStream(_inputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize,
-                                         FileFlagNoBuffering);
+                                         FileFlagNoBuffering | FileOptions.SequentialScan);
             }
             catch (Exception e)
             {
-                if (IsDebugEnabled)
+                if (_isDebugEnabled)
                 {
                     Log.Debug("Failed to open for read");
                     Log.Debug(e);
@@ -109,25 +117,27 @@ namespace UBCopy
                 throw;
             }
             //if we have data read it
-            while (_totalbytesread < _infilesize)
+            while ((_bytesRead1 = _infile.Read(Buffer1, 0, CopyBufferSize)) != 0)
             {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Read _buffer2Dirty    : " + _buffer2Dirty);
-                }
-                _bytesRead1 = _infile.Read(Buffer1, 0, CopyBufferSize);
-                Monitor.Enter(Locker1);
+                if (_bytesRead1 < CopyBufferSize)
+
+                    if (_checksum)
+                        md5.TransformBlock(Buffer1, 0, _bytesRead1, Buffer1, 0);
+
+                Monitor.Enter(_locker1);
                 try
                 {
-                    while (_buffer2Dirty) Monitor.Wait(Locker1);
+                    while (_buffer2Dirty) Monitor.Wait(_locker1);
                     Buffer.BlockCopy(Buffer1, 0, Buffer2, 0, _bytesRead1);
+
                     _buffer2Dirty = true;
-                    _bytesRead2 = _bytesRead1;
                     _totalbytesread = _totalbytesread + _bytesRead1;
-                    Monitor.PulseAll(Locker1);
-                    if (IsDebugEnabled)
+
+                    Monitor.PulseAll(_locker1);
+                    if (_isDebugEnabled)
                     {
-                        Log.Debug("Read       : " + _totalbytesread);
+                        Log.Debug("Block Read       : " + _bytesRead1);
+                        Log.Debug("Total Read       : " + _totalbytesread);
                     }
                 }
                 catch (Exception e)
@@ -137,26 +147,31 @@ namespace UBCopy
                     _readfailed = true;
                     throw;
                 }
-                finally { Monitor.Exit(Locker1); }
+                finally { Monitor.Exit(_locker1); }
+
             }
+            // For last block:
+            if (_checksum)
+            {
+                md5.TransformFinalBlock(Buffer1, 0, _bytesRead1);
+                _readhash = md5.Hash;
+            }
+
             //clean up open handle
             _infile.Close();
             _infile.Dispose();
         }
 
-        private static void AsyncWriteFile()
+        private void AsyncWriteFile()
         {
             //open file for write unbuffered and set length to prevent growth and file fragmentation
             try
             {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Open File Write Unbuffered");
-                }
-                    _outfile = new FileStream(_outputfile, FileMode.Create, FileAccess.Write, FileShare.None, 8,
-                                              FileOptions.WriteThrough | FileFlagNoBuffering);
+                _outfile = new FileStream(_outputfile, FileMode.Create, FileAccess.Write, FileShare.None, 8,
+                                          FileOptions.WriteThrough | FileFlagNoBuffering);
+
                 //set file size to minimum of one buffer to cut down on fragmentation
-                _outfile.SetLength((long)((Math.Ceiling((double)_infilesize / CopyBufferSize) * CopyBufferSize)));
+                _outfile.SetLength((long)(_infilesize > CopyBufferSize ? (Math.Ceiling((double)_infilesize / CopyBufferSize) * CopyBufferSize) : CopyBufferSize));
             }
             catch (Exception e)
             {
@@ -171,49 +186,28 @@ namespace UBCopy
             //progress stuff
             if (_reportprogress)
             {
-                if (IsDebugEnabled)
+                if (_isDebugEnabled)
                 {
                     Log.Debug("Report Progress : True");
                 }
                 pctinc = 100.00 / _numchunks;
             }
-            if (IsDebugEnabled)
+            if (_isDebugEnabled)
             {
-                Log.Debug("While Write _totalbyteswritten          : " + _totalbyteswritten);
-                Log.Debug("While Write _infilesize - CopyBufferSize: " + (_infilesize - CopyBufferSize));
+                Log.Debug("_totalbyteswritten          : " + _totalbyteswritten);
+                Log.Debug("_infilesize - CopyBufferSize: " + (_infilesize - CopyBufferSize));
             }
             while ((_totalbyteswritten < _infilesize) && !_readfailed)
             {
-                if (IsDebugEnabled)
+                lock (_locker1)
                 {
-                    Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
-                }
-                lock (Locker1)
-                {
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Write Unbuffered Lock");
-                    }
-                    while (!_buffer2Dirty) Monitor.Wait(Locker1);
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
-                    }
-                    Buffer.BlockCopy(Buffer2, 0, Buffer3, 0, _bytesRead2);
+                    while (!_buffer2Dirty) Monitor.Wait(_locker1);
+                    Buffer.BlockCopy(Buffer2, 0, Buffer3, 0, CopyBufferSize);
                     _buffer2Dirty = false;
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Write Unbuffered _buffer2Dirty    : " + _buffer2Dirty);
-                    }
-                    _totalbyteswritten = _totalbyteswritten + CopyBufferSize;
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Written Unbuffered : " + _totalbyteswritten);
-                    }
-                    Monitor.PulseAll(Locker1);
+                    Monitor.PulseAll(_locker1);
                     //fancy dan in place percent update on each write.
 
-                    if (_reportprogress && !IsDebugEnabled)
+                    if (_reportprogress && !_isDebugEnabled)
                     {
                         Console.SetCursorPosition(_origCol, _origRow);
                         if (progress < 101 - pctinc)
@@ -233,8 +227,12 @@ namespace UBCopy
                     Log.Fatal(e);
                     throw;
                 }
+                _totalbyteswritten = _totalbyteswritten + CopyBufferSize;
+                if (_isDebugEnabled)
+                {
+                    Log.Debug("Written Unbuffered : " + _totalbyteswritten);
+                }
             }
-
             //close the file handle that was using unbuffered and write through and move the EOF pointer.
             Log.Debug("Close Write File Unbuffered");
             _outfile.Close();
@@ -242,7 +240,7 @@ namespace UBCopy
 
             try
             {
-                if (IsDebugEnabled)
+                if (_isDebugEnabled)
                 {
                     Log.Debug("Open File Set Length");
                 }
@@ -254,7 +252,7 @@ namespace UBCopy
             }
             catch (Exception e)
             {
-                if (IsDebugEnabled)
+                if (_isDebugEnabled)
                 {
                     Log.Debug("Failed to open for write set length");
                     Log.Debug(e);
@@ -263,10 +261,11 @@ namespace UBCopy
             }
         }
 
-        public static int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
+        public int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
         {
-            if (IsDebugEnabled)
+            if (_isDebugEnabled)
             {
+                Log.Error("Enter Normal Method");
                 Log.Debug("inputfile      : " + inputfile);
                 Log.Debug("outputfile     : " + outputfile);
                 Log.Debug("overwrite      : " + overwrite);
@@ -275,6 +274,9 @@ namespace UBCopy
                 Log.Debug("buffersize     : " + buffersize);
                 Log.Debug("reportprogress : " + reportprogress);
             }
+            //do we do the checksum?
+            _checksum = checksum;
+
             //report write progress
             _reportprogress = reportprogress;
 
@@ -282,148 +284,129 @@ namespace UBCopy
             _inputfile = inputfile;
             _outputfile = outputfile;
 
-            //setup single buffer size, remember this will be x3.
-            CopyBufferSize = buffersize * 1024 * 1024;
-
-            //buffer read
-            Buffer1 = new byte[CopyBufferSize];
-
-            //buffer overlap
-            Buffer2 = new byte[CopyBufferSize];
-
-            //buffer write
-            Buffer3 = new byte[CopyBufferSize];
-
-            //clear all flags and handles
-            _totalbytesread = 0;
-            _totalbyteswritten = 0;
-            _bytesRead1 = 0;
-            _buffer2Dirty = false;
-
-
             //if the overwrite flag is set to false check to see if the file is there.
             if (File.Exists(outputfile) && !overwrite)
             {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Destination File Exists!");
-                }
-                Console.WriteLine("Destination File Exists!");
+                Log.Debug("Destination File Exists!");
                 return 0;
             }
 
             //create the directory if it doesn't exist
-            if (!Directory.Exists(outputfile))
-            {
-                try
+            if (!File.Exists(outputfile))
+                if (!Directory.Exists(outputfile))
                 {
-                    // ReSharper disable AssignNullToNotNullAttribute
-                    Directory.CreateDirectory(Path.GetDirectoryName(outputfile));
-                    // ReSharper restore AssignNullToNotNullAttribute
+                    try
+                    {
+                        // ReSharper disable AssignNullToNotNullAttribute
+                        Directory.CreateDirectory(Path.GetDirectoryName(outputfile));
+                        // ReSharper restore AssignNullToNotNullAttribute
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Fatal("Create Directory Failed.");
+                        Log.Fatal(e);
+                        throw;
+                    }
                 }
-                catch (Exception e)
-                {
-                    Log.Fatal("Create Directory Failed.");
-                    Log.Fatal(e);
-                    Console.WriteLine("Create Directory Failed.");
-                    Console.WriteLine(e.Message);
-                    throw;
-                }
-            }
-
-
             //get input file size for later use
             var inputFileInfo = new FileInfo(_inputfile);
             _infilesize = inputFileInfo.Length;
 
-            //get number of buffer sized chunks used to correctly display percent complete.
-            _numchunks = (int)((_infilesize / CopyBufferSize) <= 0 ? (_infilesize / CopyBufferSize) : 1);
+            //setup single buffer size in megabytes, remember this will be x3.
+            CopyBufferSize = buffersize * 1048576;
 
-            if (IsDebugEnabled)
+            if (_infilesize < UBCopySetup.SynchronousFileCopySize)
             {
-                Log.Debug("File Copy Started");
+                BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576,out _readhash);
             }
-            Console.WriteLine("File Copy Started");
-
-            //create read thread and start it.
-            var readfile = new Thread(AsyncReadFile) { Name = "ReadThread", IsBackground = true };
-            readfile.Start();
-
-            if (IsDebugEnabled)
+            else
             {
-                //debug show if we are an even multiple of the file size
-                Log.Debug("Number of Chunks: " + _numchunks);
+                //buffer read
+                Buffer1 = new byte[CopyBufferSize];
+
+                //buffer overlap
+                Buffer2 = new byte[CopyBufferSize];
+
+                //buffer write
+                Buffer3 = new byte[CopyBufferSize];
+
+                //clear all flags and handles
+                _totalbytesread = 0;
+                _totalbyteswritten = 0;
+                _bytesRead1 = 0;
+                _buffer2Dirty = false;
+
+                //get number of buffer sized chunks used to correctly display percent complete.
+                _numchunks = (int)((_infilesize / CopyBufferSize) <= 0 ? (_infilesize / CopyBufferSize) : 1);
+
+                //create read thread and start it.
+                var readfile = new Thread(AsyncReadFile) { Name = "Read Thread", IsBackground = true };
+                readfile.Start();
+
+                if (_isDebugEnabled)
+                {
+                    //debug show if we are an even multiple of the file size
+                    Log.Debug("Number of Chunks: " + _numchunks);
+                }
+
+                //create write thread and start it.
+                var writefile = new Thread(AsyncWriteFile) { Name = "WriteThread", IsBackground = true };
+                writefile.Start();
+
+                if (_reportprogress)
+                {
+                    //set fancy curor position
+                    _origRow = Console.CursorTop;
+                    _origCol = Console.CursorLeft;
+                }
+
+                //wait for threads to finish
+                readfile.Join();
+                writefile.Join();
+
+                //leave a blank line for the progress indicator
+                if (_reportprogress)
+                    Console.WriteLine();
+
+                Log.InfoFormat("Async File {0} Done", _inputfile);
             }
-
-            //create write thread and start it.
-            var writefile = new Thread(AsyncWriteFile) { Name = "WriteThread", IsBackground = true };
-            writefile.Start();
-
-            if (_reportprogress)
-            {
-                //set fancy curor position
-                _origRow = Console.CursorTop;
-                _origCol = Console.CursorLeft;
-            }
-
-            //wait for threads to finish
-            readfile.Join();
-            writefile.Join();
-
-            //leave a blank line for the progress indicator
-            if (_reportprogress)
-                Console.WriteLine();
-
-            if (IsDebugEnabled)
-            {
-                Log.Debug("File Copy Done");
-            }
-
-            Console.WriteLine("File Copy Done");
 
             if (checksum)
             {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Checksum Source File Started");
-                }
-                Console.WriteLine("Checksum Source File Started");
-                //create checksum read file thread and start it.
-                var checksumreadfile = new Thread(GetMD5HashFromInputFile) { Name = "checksumreadfile", IsBackground = true };
-                checksumreadfile.Start();
-
-                if (IsDebugEnabled)
+                if (_isDebugEnabled)
                 {
                     Log.Debug("Checksum Destination File Started");
                 }
-                Console.WriteLine("Checksum Destination File Started");
                 //create checksum write file thread and start it.
                 var checksumwritefile = new Thread(GetMD5HashFromOutputFile) { Name = "checksumwritefile", IsBackground = true };
                 checksumwritefile.Start();
 
                 //hang out until the checksums are done.
-                checksumreadfile.Join();
                 checksumwritefile.Join();
 
-                if (_infilechecksum.Equals(_outfilechecksum))
+                if (BitConverter.ToString(_readhash) == BitConverter.ToString(_writehash))
                 {
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Checksum Verified");
-                    }
-                    Console.WriteLine("Checksum Verified");
+                    Log.Info("Checksum Verified");
                 }
                 else
                 {
-                    if (IsDebugEnabled)
+                    Log.Info("Checksum Failed");
+
+                    var sb = new StringBuilder();
+                    for (var i = 0; i < _readhash.Length; i++)
                     {
-                        Log.Debug("Checksum Failed");
-                        Log.DebugFormat("Input File Checksum : {0}", _infilechecksum);
-                        Log.DebugFormat("Output File Checksum: {0}", _outfilechecksum);
+                        sb.Append(_readhash[i].ToString("x2"));
                     }
-                    Console.WriteLine("Checksum Failed");
-                    Console.WriteLine("Input File Checksum : {0}", _infilechecksum);
-                    Console.WriteLine("Output File Checksum: {0}", _outfilechecksum);
+                    Log.DebugFormat("_readhash  output          : {0}", sb);
+
+
+                    sb = new StringBuilder();
+                    for (var i = 0; i < _writehash.Length; i++)
+                    {
+                        sb.Append(_writehash[i].ToString("x2"));
+                    }
+                    Log.DebugFormat("_writehash output          : {0}", sb);
+                    throw new Exception("File Failed Checksum");
                 }
             }
 
@@ -434,57 +417,36 @@ namespace UBCopy
                 }
                 catch (IOException ioex)
                 {
-                    if (IsDebugEnabled)
-                    {
-                        Log.Error("File in use or locked cannot move file.");
-                        Log.Error(ioex);
-                    }
-                    Console.WriteLine("File in use or locked");
-                    Console.WriteLine(ioex.Message);
+                    Log.Error("File in use or locked cannot move file.");
+                    Log.Error(ioex);
                 }
                 catch (Exception ex)
                 {
-                    if (IsDebugEnabled)
-                    {
-                        Log.Error("File Failed to Delete");
-                        Log.Error(ex);
-                    }
-                    Console.WriteLine("File Failed to Delete");
-                    Console.WriteLine(ex.Message);
+                    Log.Error("File Failed to Delete");
+                    Log.Error(ex);
                 }
+
             return 1;
         }
 
-        //hash input file
-        public static void GetMD5HashFromInputFile()
-        {
-            var fs = new FileStream(_inputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize);
-            MD5 md5 = new MD5CryptoServiceProvider();
-            byte[] retVal = md5.ComputeHash(fs);
-            fs.Close();
-
-            var sb = new StringBuilder();
-            for (var i = 0; i < retVal.Length; i++)
-            {
-                sb.Append(retVal[i].ToString("x2"));
-            }
-            _infilechecksum = sb.ToString();
-        }
-
         //hash output file
-        public static void GetMD5HashFromOutputFile()
+        public void GetMD5HashFromOutputFile()
         {
-            var fs = new FileStream(_outputfile, FileMode.Open, FileAccess.Read, FileShare.None, CopyBufferSize);
-            MD5 md5 = new MD5CryptoServiceProvider();
-            byte[] retVal = md5.ComputeHash(fs);
+            var md5 = MD5.Create();
+            var fs = new FileStream(_outputfile,
+                                       FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize,
+                                       FileFlagNoBuffering | FileOptions.SequentialScan);
+
+            var buff = new byte[CopyBufferSize];
+            int bytesread;
+            while ((bytesread = fs.Read(buff, 0, buff.Length)) != 0)
+            {
+                md5.TransformBlock(buff, 0, bytesread, buff, 0);
+            }
+            md5.TransformFinalBlock(buff, 0, bytesread);
+            _writehash = md5.Hash;
             fs.Close();
 
-            var sb = new StringBuilder();
-            for (var i = 0; i < retVal.Length; i++)
-            {
-                sb.Append(retVal[i].ToString("x2"));
-            }
-            _outfilechecksum = sb.ToString();
         }
     }
 }

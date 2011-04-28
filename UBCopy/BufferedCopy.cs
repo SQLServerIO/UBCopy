@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Security.Cryptography;
 using log4net;
 
 namespace UBCopy
@@ -11,39 +12,44 @@ namespace UBCopy
 
         const FileOptions FileFlagNoBuffering = (FileOptions)0x20000000;
 
-        public static int SyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
+        public static int SyncCopyFileUnbuffered(string inputfile, string outputfile, int buffersize, out byte[] readhash)
         {
+            var md5 = MD5.Create();
+
             if (IsDebugEnabled)
             {
                 Log.Debug("Starting SyncCopyFileUnbuffered");
             }
 
-            var buffer = new byte[buffersize * 1024 * 1024];
-
-            //if the overwrite flag is set to false check to see if the file is there.
-            if (File.Exists(outputfile) && !overwrite)
+            var buffer = new byte[buffersize];
+            FileStream infile;
+            FileStream outfile;
+            Log.DebugFormat("attempting to lock file {0}", inputfile);
+            try
             {
-                if (IsDebugEnabled)
-                {
-                    Log.Debug("Destination File Exists!");
-                }
-                Console.WriteLine("Destination File Exists!");
-                return 0;
+                infile = new FileStream(inputfile,
+                                            FileMode.Open, FileAccess.Read, FileShare.None, buffersize,
+                                            FileFlagNoBuffering | FileOptions.SequentialScan);
+
+            }
+            catch (Exception)
+            {
+                Log.Debug(inputfile);
+                throw;
             }
 
-            //create the directory if it doesn't exist
-            if (!Directory.Exists(outputfile))
+            try
             {
-                // ReSharper disable AssignNullToNotNullAttribute
-                Directory.CreateDirectory(Path.GetDirectoryName(outputfile));
-                // ReSharper restore AssignNullToNotNullAttribute
+                outfile = new FileStream(outputfile, FileMode.Create, FileAccess.Write,
+                                             FileShare.None, buffersize, FileOptions.WriteThrough);
+
+            }
+            catch (Exception)
+            {
+                Log.Debug(outputfile);
+                throw;
             }
 
-            var infile = new FileStream(inputfile,
-                                        FileMode.Open, FileAccess.Read, FileShare.None, 8,
-                                        FileFlagNoBuffering | FileOptions.SequentialScan);
-            var outfile = new FileStream(outputfile, FileMode.Create, FileAccess.Write,
-                                         FileShare.None, 8, FileOptions.WriteThrough);
             outfile.SetLength(infile.Length);
             try
             {
@@ -51,9 +57,23 @@ namespace UBCopy
                 while ((bytesRead = infile.Read(buffer, 0, buffer.Length)) != 0)
                 {
                     outfile.Write(buffer, 0, bytesRead);
+                    if (UBCopySetup.Checksumfiles)
+                        md5.TransformBlock(buffer, 0, bytesRead, buffer, 0);
+
                 }
+                // For last block:
+                if (UBCopySetup.Checksumfiles)
+                {
+                    md5.TransformFinalBlock(buffer, 0, bytesRead);
+                    readhash = md5.Hash;
+                }
+                else
+                {
+                    readhash = new byte[1];
+                }
+
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 if (IsDebugEnabled)
                 {
@@ -62,6 +82,7 @@ namespace UBCopy
                 }
                 if (File.Exists(outputfile))
                     File.Delete(outputfile);
+                readhash = new byte[1];
                 return 0;
             }
             finally
@@ -71,24 +92,7 @@ namespace UBCopy
                 infile.Close();
                 infile.Dispose();
             }
-
-            if (movefile && File.Exists(inputfile) && File.Exists(outputfile))
-            {
-                try
-                {
-                    File.Delete(inputfile);
-                    return 1;
-                }
-                catch (Exception e)
-                {
-                    if (IsDebugEnabled)
-                    {
-                        Log.Debug("Exeption on file delete on move.");
-                        Log.Debug(e);
-                    }
-                    throw;
-                }
-            }
+            Log.InfoFormat("Unbuffered Sync File {0} Done", inputfile);
             if (IsDebugEnabled)
             {
                 Log.Debug("Exit SyncCopyFileUnbuffered");

@@ -1,4 +1,4 @@
-UBCopy is a file copy tool written in 100% managed code. What makes it different is its speed. While not as fast as a native application written in C or C++ it is very close. This was put together as a proof of concept initially to prove that you can get some performance from managed code and file I/O.
+UBCopy is a file copy tool written in 100% managed code. What makes it different is its speed. While not as fast as a native application written in C or C++ it is very close. This was put together as a proof of concept initially to prove that you can get some performance from managed code and file I/O. Now includes the ability to do mult-threaded file copy with a configurable setting on what is a small file minimum small file size is 1 megabyte.
 
 UBCopy 1.7.11.17
 File Copy Started
@@ -8,7 +8,7 @@ Elapsed Seconds  : 1.306
 Megabytes/sec    : 698.22
 Done.
  
-FastCopy 2.08 --http://ipmsg.org/tools/fastcopy.html.en
+FastCopy 2.08 -- http://ipmsg.org/tools/fastcopy.html.en
 TotalRead = 869.6 MB
 TotalWrite = 869.6 MB
 TotalFiles = 1 (0)
@@ -16,10 +16,28 @@ TotalTime= 1.12 sec
 TransRate= 774.38 MB/s
 FileRate  = 0.89 files/s
 
+UBCopy 1.7.41.24
+Single Thread doing the work on small files
+[9936] - ElapsedSeconds      : 10.089
+[9936] - Files Per Second    : 10.7047279214987
+[9936] - Megabytes per Second: 3.68395417896202
+[9936] - Number of Byes Copied : 38972858
+[9936] - Elapsed Seconds  : 10.141
+[9936] - Done.
+
+UBCopy 1.7.41.24
+Eight Threads doing the work on small files. 
+[11076] - ElapsedSeconds      : 1.059
+[11076] - Files Per Second    : 101.983002832861
+[11076] - Megabytes per Second: 35.0967079429158
+[11076] - Number of Byes Copied : 38972858
+[11076] - Elapsed Seconds  : 1.105
+[11076] - Done.
+
 This sample test copy was done on an HP DL380G7 with 96 15k SAS drives attached to two P411 Controllers and one Fusion-io Duo 640. The file was read from the Fusion-io card and written to the storage array. I tested on such a high end system to make sure I was working through all the potential bottlenecks in the code.
 You can also read about it in this blog post http://sqlserverio.com/2010/10/07/at-the-end-of-the-io-road-with-c-pave-new-road/ 
 
-UBCopy 1.7.30.17
+UBCopy 1.7.41.24
 Usage: UBCopy [OPTIONS]
 Copy files using un-buffered IO and Overlapping buffers
 
@@ -30,9 +48,14 @@ Options:
   -o, --overwritedestination[=VALUE]
                              True if you want to overwrite the destination
                                file if it exists
-  -c, --checksum[=VALUE]     True if you want use SHA1 to verify the
+  -m, --movefile[=VALUE]     True if you want to copy the file to new
+                               location and delete from the old location
+  -c, --checksum[=VALUE]     True if you want use MD5 hash to verify the
                                destination file is the same as the source file
   -b, --buffersize[=VALUE]   size in Megabytes, maximum of 32
+  -t, --threads[=VALUE]      number of threads to use for small file copying
+  -z, --filesize[=VALUE]     smallest file size for threaded copy, in
+                               megabytes
   -r, --reportprogress[=VALUE]
                              True give a visual indicator of the copy progress
   -?, -h, --help             show this message and exit
