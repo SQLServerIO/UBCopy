@@ -94,24 +94,24 @@ namespace UBCopy
                         return 0;
                     }
                 }
-                if (outputExistsAttributes == 3 && inputIsFile == false)
-                {
-                    try
-                    {
-                        var di = Directory.CreateDirectory(outputfile);
-                        Log.DebugFormat("The directory was created successfully at {0}.",
-                                        Directory.GetCreationTime(outputfile));
-                        Log.Debug(di.Attributes);
-                    }
-                    catch (Exception)
-                    {
-                        if (File.Exists(outputfile))
-                        {
-                            Log.Fatal("Create Output Directory Failed.");
-                            throw;
-                        }
-                    }
-                }
+                //if (outputExistsAttributes == 3)
+                //{
+                //    try
+                //    {
+                //        var di = Directory.CreateDirectory(outputfile);
+                //        Log.DebugFormat("The directory was created successfully at {0}.",
+                //                        Directory.GetCreationTime(outputfile));
+                //        Log.Debug(di.Attributes);
+                //    }
+                //    catch (Exception)
+                //    {
+                //        if (File.Exists(outputfile))
+                //        {
+                //            Log.Fatal("Create Output Directory Failed.");
+                //            throw;
+                //        }
+                //    }
+                //}
             }
 
             if (UBCopySetup.FileList.Count < numberthreads)
@@ -131,15 +131,11 @@ namespace UBCopy
             {
                 foreach (var file in UBCopySetup.FileList)
                 {
-                    string destinationfile;
-                    if (inputIsFile == false)
-                    {
-                        destinationfile = Path.Combine(UBCopySetup.Destinationfile, file.Replace(Path.GetPathRoot(file), ""));
-                    }
-                    else
-                    {
-                        destinationfile = UBCopySetup.Destinationfile;
-                    }
+
+                    var destinationfile = inputIsFile == false
+                                              ? Path.Combine(UBCopySetup.Destinationfile,
+                                                             file.Replace(Path.GetPathRoot(file), ""))
+                                              : UBCopySetup.Destinationfile;
                     var fileSize = new FileInfo(file);
 
                     Log.DebugFormat("File Size: {0}", fileSize.Length);
@@ -149,7 +145,7 @@ namespace UBCopy
                                                                   UBCopySetup.Overwritedestination,
                                                                   UBCopySetup.Movefile,
                                                                   UBCopySetup.Checksumfiles, UBCopySetup.Buffersize,
-                                                                  UBCopySetup.Reportprogres,UBCopySetup.BytesSecond);
+                                                                  UBCopySetup.Reportprogres, UBCopySetup.BytesSecond);
                 }
 
             }
@@ -193,11 +189,7 @@ namespace UBCopy
                 var attr = File.GetAttributes(path);
 
                 //detect whether its a directory or file
-                if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
-                {
-                    return 2;
-                }
-                return 1;
+                return (attr & FileAttributes.Directory) == FileAttributes.Directory ? 2 : 1;
             }
             catch
             {

@@ -74,7 +74,6 @@ namespace UBCopy
                         {
                             Throttle(elapsedms);
                             throttleSw.Reset();
-                            elapsedms = 0;
                         }
                     }
                     else

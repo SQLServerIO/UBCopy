@@ -334,14 +334,9 @@ namespace UBCopy
 
                 if (_infilesize < 256 * 1024)
                 {
-                    if (bytessecond == 0)
-                    {
-                        BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576, bytessecond, out _readhash);
-                    }
-                    else
-                    {
-                        BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, bytessecond, bytessecond, out _readhash);
-                    }
+                    BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile,
+                                                        bytessecond == 0 ? 1048576 : bytessecond, bytessecond,
+                                                        out _readhash);
                 }
                 else
                 {
@@ -491,7 +486,7 @@ namespace UBCopy
             if (elapsedMilliseconds > 0)
             {
                 // Calculate the time to sleep.
-                int toSleep = (int)(1000 - elapsedMilliseconds);
+                var toSleep = (int)(1000 - elapsedMilliseconds);
 
                 if (toSleep > 1)
                 {

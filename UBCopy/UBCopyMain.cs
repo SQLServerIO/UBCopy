@@ -45,11 +45,13 @@ namespace UBCopy
         //we set an inital buffer size to be on the safe side.
         private static int _buffersize = 16;
         private static int _threads = 2;
-        private static int _bytessecond = 0;
+        private static int _bytessecond;
         private static int _smallfilesize = 16;
         private static bool _checksumfiles;
         private static bool _reportprogres;
         private static bool _movefile;
+        private static bool _forcecopy;
+        private static bool _syncfolders;
 
         private static int Main(string[] args)
         {
@@ -147,6 +149,9 @@ namespace UBCopy
                           { "m:|movefile:", "True if you want to copy the file to new location and delete from the old location",
                           (bool v) => _movefile = v},
 
+                          { "f:|forcecopy:", "True if you want to copy the file to new location and not detect if it is the same file system",
+                          (bool v) => _forcecopy = v},
+
                           { "c:|checksum:", "True if you want use MD5 hash to verify the destination file is the same as the source file",
                           (bool v) => _checksumfiles = v},
 
@@ -164,6 +169,9 @@ namespace UBCopy
 
                           { "r:|reportprogress:", "True give a visual indicator of the copy progress",
                           (bool v) => _reportprogres = v},
+
+                          { "y:|syncfolders:", "Copy if date is newer, or doesn't exist, assumes movefile=true",
+                          (bool v) => _syncfolders = v},
 
                           { "?|h|help",  "show this message and exit", 
                           v => showHelp = v != null },
