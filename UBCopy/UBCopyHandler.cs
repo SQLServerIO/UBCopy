@@ -30,7 +30,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using log4net;
-using TestMultithreadFileCopy;
 
 namespace UBCopy
 {
@@ -38,7 +37,8 @@ namespace UBCopy
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(UBCopyHandler));
 
-        public static int ProcessFiles(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress, int numberthreads, int synchronousFileCopySize, int bytesSecond)
+        public static int ProcessFiles(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, 
+            bool reportprogress, int numberthreads, int synchronousFileCopySize, int bytesSecond)
         {
             if (string.IsNullOrEmpty(outputfile))
                 throw new Exception("Target cannot be empty");
@@ -166,7 +166,7 @@ namespace UBCopy
                         doneEvents[i] = new ManualResetEvent(false);
                         var p = new UBCopyProcessor(doneEvents[i]);
                         hashFilesArray[i] = p;
-                        ThreadPool.QueueUserWorkItem(p.MyProcessThreadPoolCallback, i);
+                        ThreadPool.QueueUserWorkItem(p.UBCopyThreadPoolCallback, i);
                     }
 
                     // Wait for all threads in pool to finished processing

@@ -7,9 +7,9 @@ using log4net;
 
 namespace UBCopy
 {
-    class BufferedCopy
+    class SynchronousUnbufferedCopy
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(BufferedCopy));
+        private static readonly ILog Log = LogManager.GetLogger(typeof(SynchronousUnbufferedCopy));
         private static readonly bool IsDebugEnabled = Log.IsDebugEnabled;
 
         const FileOptions FileFlagNoBuffering = (FileOptions)0x20000000;
@@ -18,7 +18,6 @@ namespace UBCopy
         {
             var md5 = MD5.Create();
             var throttleSw = new Stopwatch();
-            long elapsedms = 0;
 
             if (IsDebugEnabled)
             {
@@ -68,7 +67,7 @@ namespace UBCopy
                             md5.TransformBlock(buffer, 0, bytesRead, buffer, 0);
                         throttleSw.Stop();
                         Log.DebugFormat("Time To Write: {0} ", throttleSw.ElapsedMilliseconds);
-                        elapsedms = throttleSw.ElapsedMilliseconds;
+                        long elapsedms = throttleSw.ElapsedMilliseconds;
 
                         if (bytessecond >= bytesRead && elapsedms < 1000)
                         {
@@ -132,7 +131,7 @@ namespace UBCopy
             if (elapsedMilliseconds > 0)
             {
                 // Calculate the time to sleep.
-                int toSleep = (int)(1000 - elapsedMilliseconds);
+                var toSleep = (int)(1000 - elapsedMilliseconds);
 
                 if (toSleep > 1)
                 {

@@ -89,7 +89,7 @@
   <ItemGroup>
     <Compile Include="AsyncUnbuffCopy.cs" />
     <Compile Include="AsyncUnbuffCopyStatic.cs" />
-    <Compile Include="BufferedCopy.cs" />
+    <Compile Include="SynchronousUnbufferedCopy.cs" />
     <Compile Include="ExeptionRenderer.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="UBCopyHandler.cs" />
@@ -145,7 +145,7 @@
   -->
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_AssemblyInfoFilename="Properties\AssemblyInfo.cs" BuildVersion_UseGlobalSettings="False" BuildVersion_BuildVersioningStyle="None.None.Increment.DayStamp" BuildVersion_UpdateAssemblyVersion="True" BuildVersion_UpdateFileVersion="True" BuildVersion_ConfigurationName="Any" />
+      <UserProperties BuildVersion_ConfigurationName="Any" BuildVersion_UpdateFileVersion="True" BuildVersion_UpdateAssemblyVersion="True" BuildVersion_BuildVersioningStyle="None.None.Increment.DayStamp" BuildVersion_UseGlobalSettings="False" BuildVersion_AssemblyInfoFilename="Properties\AssemblyInfo.cs" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

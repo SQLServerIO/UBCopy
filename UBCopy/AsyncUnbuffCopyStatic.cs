@@ -1,5 +1,5 @@
 ﻿//
-// AsyncUnbuffCopy.cs
+// AsyncUnbuffCopyStatic.cs
 //
 // Authors:
 //  Wesley D. Brown <wes@planetarydb.com>
@@ -334,7 +334,7 @@ namespace UBCopy
 
                 if (_infilesize < 256 * 1024)
                 {
-                    BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile,
+                    SynchronousUnbufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile,
                                                         bytessecond == 0 ? 1048576 : bytessecond, bytessecond,
                                                         out _readhash);
                 }

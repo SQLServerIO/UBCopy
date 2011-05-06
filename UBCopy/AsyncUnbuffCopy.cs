@@ -317,7 +317,7 @@ namespace UBCopy
 
             if (_infilesize < UBCopySetup.SynchronousFileCopySize)
             {
-                BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576, bytessecond ,out _readhash);
+                SynchronousUnbufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576, bytessecond ,out _readhash);
             }
             else
             {

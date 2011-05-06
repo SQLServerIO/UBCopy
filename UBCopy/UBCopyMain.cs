@@ -52,6 +52,7 @@ namespace UBCopy
         private static bool _movefile;
         private static bool _forcecopy;
         private static bool _syncfolders;
+        private static bool _restartonfailure;
 
         private static int Main(string[] args)
         {
@@ -168,6 +169,9 @@ namespace UBCopy
                           (int v) => _smallfilesize = v},
 
                           { "r:|reportprogress:", "True give a visual indicator of the copy progress",
+                          (bool v) => _reportprogres = v},
+
+                          { "x:|restartonfailure:", "restart any file copy that was interupted",
                           (bool v) => _reportprogres = v},
 
                           { "y:|syncfolders:", "Copy if date is newer, or doesn't exist, assumes movefile=true",

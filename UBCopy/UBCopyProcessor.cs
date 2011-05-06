@@ -2,9 +2,8 @@
 using System.IO;
 using System.Threading;
 using log4net;
-using UBCopy;
 
-namespace TestMultithreadFileCopy
+namespace UBCopy
 {
     class UBCopyProcessor
     {
@@ -26,7 +25,7 @@ namespace TestMultithreadFileCopy
         /// setup callback
         /// </summary>
         /// <param name="threadContext"></param>
-        public void MyProcessThreadPoolCallback(Object threadContext)
+        public void UBCopyThreadPoolCallback(Object threadContext)
         {
             UBCopyFile();
             _doneEvent.Set();
