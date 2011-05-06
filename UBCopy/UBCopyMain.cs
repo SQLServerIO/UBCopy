@@ -45,10 +45,13 @@ namespace UBCopy
         //we set an inital buffer size to be on the safe side.
         private static int _buffersize = 16;
         private static int _threads = 2;
+        private static int _bytessecond;
         private static int _smallfilesize = 16;
         private static bool _checksumfiles;
         private static bool _reportprogres;
         private static bool _movefile;
+        private static bool _forcecopy;
+        private static bool _syncfolders;
 
         private static int Main(string[] args)
         {
@@ -87,7 +90,7 @@ namespace UBCopy
                 {
                     UBCopyHandler.ProcessFiles(_sourcefile, _destinationfile, _overwritedestination,
                                                             _movefile,
-                                                            _checksumfiles, _buffersize, _reportprogres, _threads, _smallfilesize);
+                                                            _checksumfiles, _buffersize, _reportprogres, _threads, _smallfilesize,_bytessecond);
                 }
                 catch (Exception ex)
                 {
@@ -102,7 +105,6 @@ namespace UBCopy
                 Log.InfoFormat("Number of Byes Copied : {0}", UBCopySetup.BytesCopied);
                 Log.InfoFormat("Elapsed Seconds  : {0}", sw.ElapsedMilliseconds / 1000.00);
                 Log.Info("Done.");
-
 #if DEBUG
                 {
                     Console.ReadKey();
@@ -118,7 +120,13 @@ namespace UBCopy
 
                 Console.WriteLine("Error: File copy aborted");
                 Console.WriteLine(e.Message);
+#if DEBUG
+                {
+                    Console.ReadKey();
+                }
+#endif
                 return 0;
+
             }
 
         }
@@ -141,6 +149,9 @@ namespace UBCopy
                           { "m:|movefile:", "True if you want to copy the file to new location and delete from the old location",
                           (bool v) => _movefile = v},
 
+                          { "f:|forcecopy:", "True if you want to copy the file to new location and not detect if it is the same file system",
+                          (bool v) => _forcecopy = v},
+
                           { "c:|checksum:", "True if you want use MD5 hash to verify the destination file is the same as the source file",
                           (bool v) => _checksumfiles = v},
 
@@ -150,11 +161,17 @@ namespace UBCopy
                           { "t:|threads:", "number of threads to use for small file copying",
                           (int v) => _threads = v},
 
+                          { "l:|LimitBandwidth:", "Maxmum number of bytes a second sets thread count to 1",
+                          (int v) => _bytessecond = v},
+
                           { "z:|filesize:", "smallest file size for threaded copy, in megabytes",
                           (int v) => _smallfilesize = v},
 
                           { "r:|reportprogress:", "True give a visual indicator of the copy progress",
                           (bool v) => _reportprogres = v},
+
+                          { "y:|syncfolders:", "Copy if date is newer, or doesn't exist, assumes movefile=true",
+                          (bool v) => _syncfolders = v},
 
                           { "?|h|help",  "show this message and exit", 
                           v => showHelp = v != null },

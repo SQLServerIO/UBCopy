@@ -38,7 +38,6 @@ namespace TestMultithreadFileCopy
         private static void UBCopyFile()
         {
             string file;
-            //lock (UBCopySetup.FileList)
             lock (UBCopySetup.DictonaryLocker)
             {
                 file = UBCopySetup.FileList.Pop();
@@ -62,14 +61,14 @@ namespace TestMultithreadFileCopy
                 asyncUnbufferedCopy.AsyncCopyFileUnbuffered(file, destinationfile, UBCopySetup.Overwritedestination,
                                                             UBCopySetup.Movefile,
                                                             UBCopySetup.Checksumfiles, UBCopySetup.Buffersize,
-                                                            UBCopySetup.Reportprogres);
+                                                            UBCopySetup.Reportprogres,UBCopySetup.BytesSecond);
             }
             else
             {
                 AsyncUnbuffCopyStatic.AsyncCopyFileUnbuffered(file, destinationfile, UBCopySetup.Overwritedestination,
                                                             UBCopySetup.Movefile,
                                                             UBCopySetup.Checksumfiles, UBCopySetup.Buffersize,
-                                                            UBCopySetup.Reportprogres);
+                                                            UBCopySetup.Reportprogres, UBCopySetup.BytesSecond);
             }
         }
     }

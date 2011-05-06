@@ -38,7 +38,7 @@ namespace UBCopy
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(UBCopyHandler));
 
-        public static int ProcessFiles(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress, int numberthreads, int synchronousFileCopySize)
+        public static int ProcessFiles(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress, int numberthreads, int synchronousFileCopySize, int bytesSecond)
         {
             if (string.IsNullOrEmpty(outputfile))
                 throw new Exception("Target cannot be empty");
@@ -50,7 +50,7 @@ namespace UBCopy
             UBCopySetup.Movefile = movefile;
             UBCopySetup.Reportprogres = reportprogress;
             UBCopySetup.SynchronousFileCopySize = synchronousFileCopySize * 1024 * 1024;
-
+            UBCopySetup.BytesSecond = bytesSecond;
             try
             {
                 // get the file attributes for file or directory
@@ -74,7 +74,7 @@ namespace UBCopy
                 return 0;
             }
 
-            if (!inputIsFile)
+            if (inputIsFile)
             {
                 var outputExistsAttributes = IsFileOrDirectoryAndExists(outputfile);
 
@@ -94,85 +94,90 @@ namespace UBCopy
                         return 0;
                     }
                 }
-                if (outputExistsAttributes == 3)
-                {
-                    try
-                    {
-                        var di = Directory.CreateDirectory(outputfile);
-                        Log.DebugFormat("The directory was created successfully at {0}.",
-                                        Directory.GetCreationTime(outputfile));
-                        Log.Debug(di.Attributes);
-                    }
-                    catch (Exception)
-                    {
-                        if (File.Exists(outputfile))
-                        {
-                            Log.Fatal("Create Output Directory Failed.");
-                            throw;
-                        }
-                    }
-                }
-
-                if (UBCopySetup.FileList.Count < numberthreads)
-                {
-                    numberthreads = UBCopySetup.FileList.Count;
-                }
-
-                Log.InfoFormat("Number of Files To Process: {0}", UBCopySetup.FileList.Count);
-                var sw = new Stopwatch();
-                sw.Start();
-                var ftph = UBCopySetup.FileList.Count;
-
-                if (numberthreads == 1)
-                {
-                    foreach (var file in UBCopySetup.FileList)
-                    {
-                        var destinationfile = Path.Combine(UBCopySetup.Destinationfile, file.Replace(Path.GetPathRoot(file), ""));
-                        var fileSize = new FileInfo(file);
-
-                        Log.DebugFormat("File Size: {0}", fileSize.Length);
-                        UBCopySetup.BytesCopied += fileSize.Length;
-
-                        AsyncUnbuffCopyStatic.AsyncCopyFileUnbuffered(file, destinationfile,
-                                                                      UBCopySetup.Overwritedestination,
-                                                                      UBCopySetup.Movefile,
-                                                                      UBCopySetup.Checksumfiles, UBCopySetup.Buffersize,
-                                                                      UBCopySetup.Reportprogres);
-                    }
-
-                }
-                else
-                {
-                    var doneEvents = new ManualResetEvent[numberthreads];
-                    var hashFilesArray = new UBCopyProcessor[numberthreads];
-                    var ftp = UBCopySetup.FileList.Count;
-
-
-                    while (ftp > 0)
-                    {
-                        // Configure and launch threads using ThreadPool:
-                        if (ftp < numberthreads)
-                            numberthreads = ftp;
-                        for (var i = 0; i < numberthreads; i++)
-                        {
-                            doneEvents[i] = new ManualResetEvent(false);
-                            var p = new UBCopyProcessor(doneEvents[i]);
-                            hashFilesArray[i] = p;
-                            ThreadPool.QueueUserWorkItem(p.MyProcessThreadPoolCallback, i);
-                        }
-
-                        // Wait for all threads in pool to finished processing
-                        WaitHandle.WaitAll(doneEvents);
-                        ftp = UBCopySetup.FileList.Count;
-                    }
-                }
-                sw.Stop();
-                Log.InfoFormat("ElapsedSeconds      : {0}", (sw.ElapsedMilliseconds / 1000.00));
-                Log.InfoFormat("Files Per Second    : {0}", ftph / (sw.ElapsedMilliseconds / 1000.00));
-                Log.InfoFormat("Megabytes per Second: {0}", (UBCopySetup.BytesCopied / (sw.ElapsedMilliseconds / 1000.00)) / 1048576);
-                return 1;
+                //if (outputExistsAttributes == 3)
+                //{
+                //    try
+                //    {
+                //        var di = Directory.CreateDirectory(outputfile);
+                //        Log.DebugFormat("The directory was created successfully at {0}.",
+                //                        Directory.GetCreationTime(outputfile));
+                //        Log.Debug(di.Attributes);
+                //    }
+                //    catch (Exception)
+                //    {
+                //        if (File.Exists(outputfile))
+                //        {
+                //            Log.Fatal("Create Output Directory Failed.");
+                //            throw;
+                //        }
+                //    }
+                //}
             }
 
+            if (UBCopySetup.FileList.Count < numberthreads)
+            {
+                numberthreads = UBCopySetup.FileList.Count;
+            }
+
+            if (inputIsFile)
+                numberthreads = 1;
+
+            Log.InfoFormat("Number of Files To Process: {0}", UBCopySetup.FileList.Count);
+            var sw = new Stopwatch();
+            sw.Start();
+            var ftph = UBCopySetup.FileList.Count;
+
+            if (numberthreads == 1)
+            {
+                foreach (var file in UBCopySetup.FileList)
+                {
+
+                    var destinationfile = inputIsFile == false
+                                              ? Path.Combine(UBCopySetup.Destinationfile,
+                                                             file.Replace(Path.GetPathRoot(file), ""))
+                                              : UBCopySetup.Destinationfile;
+                    var fileSize = new FileInfo(file);
+
+                    Log.DebugFormat("File Size: {0}", fileSize.Length);
+                    UBCopySetup.BytesCopied += fileSize.Length;
+
+                    AsyncUnbuffCopyStatic.AsyncCopyFileUnbuffered(file, destinationfile,
+                                                                  UBCopySetup.Overwritedestination,
+                                                                  UBCopySetup.Movefile,
+                                                                  UBCopySetup.Checksumfiles, UBCopySetup.Buffersize,
+                                                                  UBCopySetup.Reportprogres, UBCopySetup.BytesSecond);
+                }
+
+            }
+            else
+            {
+                var doneEvents = new ManualResetEvent[numberthreads];
+                var hashFilesArray = new UBCopyProcessor[numberthreads];
+                var ftp = UBCopySetup.FileList.Count;
+
+
+                while (ftp > 0)
+                {
+                    // Configure and launch threads using ThreadPool:
+                    if (ftp < numberthreads)
+                        numberthreads = ftp;
+                    for (var i = 0; i < numberthreads; i++)
+                    {
+                        doneEvents[i] = new ManualResetEvent(false);
+                        var p = new UBCopyProcessor(doneEvents[i]);
+                        hashFilesArray[i] = p;
+                        ThreadPool.QueueUserWorkItem(p.MyProcessThreadPoolCallback, i);
+                    }
+
+                    // Wait for all threads in pool to finished processing
+                    WaitHandle.WaitAll(doneEvents);
+                    ftp = UBCopySetup.FileList.Count;
+                }
+            }
+            sw.Stop();
+            Log.InfoFormat("ElapsedSeconds      : {0}", (sw.ElapsedMilliseconds / 1000.00));
+            Log.InfoFormat("Files Per Second    : {0}", ftph / (sw.ElapsedMilliseconds / 1000.00));
+            Log.InfoFormat("Megabytes per Second: {0}", (UBCopySetup.BytesCopied / (sw.ElapsedMilliseconds / 1000.00)) / 1048576);
             return 1;
         }
 
@@ -184,11 +189,7 @@ namespace UBCopy
                 var attr = File.GetAttributes(path);
 
                 //detect whether its a directory or file
-                if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
-                {
-                    return 2;
-                }
-                return 1;
+                return (attr & FileAttributes.Directory) == FileAttributes.Directory ? 2 : 1;
             }
             catch
             {

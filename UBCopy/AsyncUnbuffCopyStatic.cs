@@ -32,6 +32,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using log4net;
+using System.Diagnostics;
 
 namespace UBCopy
 {
@@ -97,6 +98,8 @@ namespace UBCopy
 
         private static byte[] _readhash;
         private static byte[] _writehash;
+
+        private static bool _throttling;
         #endregion
 
         private static void AsyncReadFile()
@@ -166,6 +169,7 @@ namespace UBCopy
 
         private static void AsyncWriteFile()
         {
+            var sw = new Stopwatch();
             //open file for write unbuffered and set length to prevent growth and file fragmentation
             try
             {
@@ -221,7 +225,19 @@ namespace UBCopy
                 }
                 try
                 {
-                    _outfile.Write(Buffer3, 0, CopyBufferSize);
+                    if (_throttling)
+                    {
+                        sw.Start();
+                        _outfile.Write(Buffer3, 0, CopyBufferSize);
+                        sw.Stop();
+                        Log.DebugFormat("Time To Write: {0} ", sw.ElapsedMilliseconds);
+                        Throttle(sw.ElapsedMilliseconds);
+                        sw.Reset();
+                    }
+                    else
+                    {
+                        _outfile.Write(Buffer3, 0, CopyBufferSize);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -263,7 +279,7 @@ namespace UBCopy
             }
         }
 
-        public static int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress)
+        public static int AsyncCopyFileUnbuffered(string inputfile, string outputfile, bool overwrite, bool movefile, bool checksum, int buffersize, bool reportprogress, int bytessecond)
         {
             lock (BigFileLock)
             {
@@ -318,13 +334,22 @@ namespace UBCopy
 
                 if (_infilesize < 256 * 1024)
                 {
-                    BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile, 1048576, out _readhash);
+                    BufferedCopy.SyncCopyFileUnbuffered(_inputfile, _outputfile,
+                                                        bytessecond == 0 ? 1048576 : bytessecond, bytessecond,
+                                                        out _readhash);
                 }
                 else
                 {
-                    //setup single buffer size in megabytes, remember this will be x3.
-                    CopyBufferSize = buffersize * 1048576;
-
+                    if (bytessecond == 0)
+                    {
+                        //setup single buffer size in megabytes, remember this will be x3.
+                        CopyBufferSize = buffersize * 1048576;
+                    }
+                    else
+                    {
+                        CopyBufferSize = bytessecond;
+                        _throttling = true;
+                    }
                     //buffer read
                     Buffer1 = new byte[CopyBufferSize];
 
@@ -450,6 +475,33 @@ namespace UBCopy
             _writehash = md5.Hash;
             fs.Close();
 
+        }
+
+        /// <summary>
+        /// Throttles for the specified buffer by milliseconds
+        /// </summary>
+        /// <param name="elapsedMilliseconds">number of milliseconds elapsed</param>
+        static private void Throttle(long elapsedMilliseconds)
+        {
+            if (elapsedMilliseconds > 0)
+            {
+                // Calculate the time to sleep.
+                var toSleep = (int)(1000 - elapsedMilliseconds);
+
+                if (toSleep > 1)
+                {
+                    Log.Debug("Throttling");
+                    try
+                    {
+                        // The time to sleep is more then a millisecond, so sleep.
+                        Thread.Sleep(toSleep);
+                    }
+                    catch (ThreadAbortException)
+                    {
+                        // Eatup ThreadAbortException.
+                    }
+                }
+            }
         }
     }
 }
